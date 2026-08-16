@@ -1,12 +1,14 @@
-import React from "react";
-import { View, Text, StyleSheet } from "react-native";
+import React, { useMemo } from "react";
+import { View, Text, Pressable, StyleSheet } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 
-import colors from "../../constants/colors";
+import { useTheme } from "../../context/ThemeContext";
 import Avatar from "../Avatar/Avatar";
 import CheckIcon from "./CheckIcon";
 
-export default function MessageBubble({ text, time, isMe, read, avatar, avatarInitials }) {
+export default function MessageBubble({ text, time, isMe, read, avatar, avatarInitials, failed, onRetry }) {
+  const colors = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
     <View style={[styles.row, isMe && styles.rowMe]}>
       {!isMe ? <Avatar size={30} initials={avatarInitials} source={avatar} /> : null}
@@ -17,7 +19,7 @@ export default function MessageBubble({ text, time, isMe, read, avatar, avatarIn
             colors={[colors.primary, colors.primaryHover]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
-            style={[styles.bubble, styles.bubbleMe]}
+            style={[styles.bubble, styles.bubbleMe, failed && styles.bubbleFailed]}
           >
             <Text style={styles.textMe}>{text}</Text>
           </LinearGradient>
@@ -27,16 +29,22 @@ export default function MessageBubble({ text, time, isMe, read, avatar, avatarIn
           </View>
         )}
 
-        <View style={styles.metaRow}>
-          <Text style={styles.time}>{time}</Text>
-          {isMe && read ? <CheckIcon size={12} color={colors.primary} /> : null}
-        </View>
+        {failed ? (
+          <Pressable style={styles.retryRow} onPress={onRetry} hitSlop={8}>
+            <Text style={styles.retryText}>Failed to send · Tap to retry</Text>
+          </Pressable>
+        ) : (
+          <View style={styles.metaRow}>
+            <Text style={styles.time}>{time}</Text>
+            {isMe && read ? <CheckIcon size={12} color={colors.primary} /> : null}
+          </View>
+        )}
       </View>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors) => StyleSheet.create({
   row: {
     flexDirection: "row",
     gap: 10,
@@ -64,6 +72,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.24,
     shadowRadius: 12,
     elevation: 3,
+  },
+  bubbleFailed: {
+    opacity: 0.5,
   },
   bubbleThem: {
     borderRadius: 20,
@@ -94,5 +105,13 @@ const styles = StyleSheet.create({
   time: {
     fontSize: 12,
     color: colors.subtle,
+  },
+  retryRow: {
+    paddingHorizontal: 4,
+  },
+  retryText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: colors.danger,
   },
 });

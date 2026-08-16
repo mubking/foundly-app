@@ -1,19 +1,10 @@
-import { ITEMS } from "./homeMockData";
-
-export const MY_LOST_ITEMS = [
-  { ...ITEMS[1], status: "active", daysAgo: 2 },
-  { ...ITEMS[3], status: "claimed", daysAgo: 5 },
-  { ...ITEMS[5], status: "returned", daysAgo: 12 },
-];
-
+// Labels/colors for LostItem.status (backend enum: open, matched, claimed,
+// closed — see backend/src/models/LostItem.js). Not the same vocabulary
+// MyLostScreen's old mock data used ("active"/"claimed"/"returned"), which
+// didn't correspond to any real backend status value.
 export const STATUS_CONFIG = {
-  active: { variant: "amber", label: "Active" },
+  open: { variant: "amber", label: "Active" },
+  matched: { variant: "purple", label: "Possible Match" },
   claimed: { variant: "primary", label: "Claim Pending" },
-  returned: { variant: "green", label: "Returned ✓" },
+  closed: { variant: "green", label: "Returned ✓" },
 };
-
-export const SUMMARY_STATS = [
-  { label: "Active", value: "1", colorKey: "secondary" },
-  { label: "Pending Claim", value: "1", colorKey: "primary" },
-  { label: "Returned", value: "1", colorKey: "success" },
-];

@@ -1,9 +1,11 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { Pressable, Text, StyleSheet } from "react-native";
 
-import colors from "../../constants/colors";
+import { useTheme } from "../../context/ThemeContext";
 
-const VARIANTS = {
+// Depends on the active palette, so it's a factory called from inside the
+// component (see `variants` below) rather than a module-level constant.
+const getVariants = (colors) => ({
   primary: { bg: colors.primary, text: "#fff", border: colors.primary, shadowColor: colors.primary, shadowOpacity: 0.32 },
   outline: { bg: "transparent", text: colors.primary, border: colors.primary, shadowOpacity: 0 },
   ghost: { bg: colors.primaryTint, text: colors.primary, border: "transparent", shadowOpacity: 0 },
@@ -11,7 +13,7 @@ const VARIANTS = {
   green: { bg: colors.success, text: "#fff", border: colors.success, shadowColor: colors.success, shadowOpacity: 0.32 },
   red: { bg: colors.danger, text: "#fff", border: colors.danger, shadowColor: colors.danger, shadowOpacity: 0.28 },
   amber: { bg: colors.secondary, text: "#fff", border: colors.secondary, shadowColor: colors.secondary, shadowOpacity: 0.28 },
-};
+});
 
 const SIZES = {
   xs: { height: 32, paddingHorizontal: 12, fontSize: 12 },
@@ -32,7 +34,9 @@ export default function Button({
   style,
   textStyle,
 }) {
-  const v = VARIANTS[variant];
+  const colors = useTheme();
+  const variants = useMemo(() => getVariants(colors), [colors]);
+  const v = variants[variant];
   const s = SIZES[size];
 
   return (

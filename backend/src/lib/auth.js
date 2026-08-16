@@ -1,4 +1,6 @@
 import { verifyToken } from "./jwt";
+import { connectDB } from "./db";
+import User from "@/models/User";
 
 /**
  * Thrown by getAuthUser() on any authentication failure. Carries the HTTP
@@ -40,4 +42,32 @@ export function getAuthUser(request) {
   } catch {
     throw new AuthError("Invalid or expired token", 401);
   }
+}
+
+/**
+ * Same as {@link getAuthUser}, plus a fresh DB check that the account is
+ * still active. A JWT stays valid for JWT_EXPIRES_IN (default 7d) after
+ * it's issued — getAuthUser alone can't tell a suspended/banned account
+ * from a good one until that token expires, since role/status aren't
+ * re-checked on every request. Use this instead of getAuthUser for actions
+ * a suspended/banned user shouldn't be able to take mid-session (creating
+ * listings, sending messages, submitting claims, uploading images, ...).
+ *
+ * @param {Request} request
+ * @returns {Promise<object>} The decoded JWT payload (e.g. { id, role }).
+ * @throws {AuthError} 401 if unauthenticated, 403 if suspended/banned.
+ */
+export async function requireActiveUser(request) {
+  const user = getAuthUser(request);
+
+  await connectDB();
+  const account = await User.findById(user.id).select("isActive banned").lean();
+  if (!account || !account.isActive) {
+    throw new AuthError(
+      account?.banned ? "This account has been banned" : "This account has been suspended",
+      403
+    );
+  }
+
+  return user;
 }

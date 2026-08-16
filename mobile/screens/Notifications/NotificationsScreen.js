@@ -1,12 +1,17 @@
-import React from "react";
-import { View, Text, ScrollView, Pressable, StyleSheet } from "react-native";
+import React, { useCallback, useMemo, useState } from "react";
+import { View, Text, FlatList, Pressable, RefreshControl, ActivityIndicator, StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 
-import colors from "../../constants/colors";
-import { NOTIFICATIONS, NOTIFICATION_TYPES } from "../../constants/notificationsMockData";
+import { useTheme } from "../../context/ThemeContext";
+import { NOTIFICATION_TYPES } from "../../constants/notificationsMockData";
+import { useNotifications } from "../../hooks/useNotifications";
+import { getNotificationRoute } from "../../services/notifications";
+import { getInitialsFromName } from "../../utils/initials";
+import { optimizeImageUrl } from "../../utils/cloudinaryImage";
 
 import Header from "../../components/Header/Header";
+import StatusState from "../../components/common/StatusState";
 import BellIcon from "../../components/common/BellIcon";
 import ZapIcon from "../../components/common/ZapIcon";
 import SearchIcon from "../../components/common/SearchIcon";
@@ -16,31 +21,103 @@ import XIcon from "../../components/common/XIcon";
 import NotificationCard from "../../components/common/NotificationCard";
 import BottomNav from "../../components/BottomNav/BottomNav";
 
-const ICONS = { zap: ZapIcon, search: SearchIcon, dollar: DollarSignIcon, check: CheckCircleIcon, x: XIcon };
+const ICONS = { zap: ZapIcon, search: SearchIcon, dollar: DollarSignIcon, check: CheckCircleIcon, x: XIcon, bell: BellIcon };
 
-const COLOR_MAP = {
+// Depend on the active palette, so these are factories called from inside
+// the component (see `colorMap`/`tintMap` below) rather than module-level
+// constants.
+const getColorMap = (colors) => ({
   primary: colors.primary,
   green: colors.success,
   amber: colors.secondary,
   red: colors.danger,
-};
+});
 
-const TINT_MAP = {
+const getTintMap = (colors) => ({
   primary: colors.primaryTint,
   green: colors.greenTint,
   amber: colors.amberTint,
   red: colors.redTint,
-};
+});
 
-const UNREAD_COUNT = NOTIFICATIONS.filter((n) => !n.read).length;
+// Falls back to this for any `type` NOTIFICATION_TYPES doesn't recognize —
+// see that file for why the set of real values is unknown.
+const DEFAULT_TYPE = { icon: "bell", color: "primary" };
 
 export default function NotificationsScreen() {
   const navigation = useNavigation();
+  const colors = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  const colorMap = useMemo(() => getColorMap(colors), [colors]);
+  const tintMap = useMemo(() => getTintMap(colors), [colors]);
+  const {
+    notifications,
+    loading,
+    refreshing,
+    loadingMore,
+    hasMore,
+    error,
+    unreadCount,
+    refresh,
+    loadMore,
+    markAsRead,
+    markAllAsRead,
+  } = useNotifications();
+  const [actionError, setActionError] = useState(null);
 
   const handleNavigate = (route) => {
     if (route === "Notifications") return;
     navigation.navigate(route);
   };
+
+  // Marks the notification read on open, then navigates to whatever it's
+  // about, if anything (getNotificationRoute returns null for
+  // notifications with no targetType/targetId — nothing to deep-link to).
+  const handleOpen = useCallback(
+    async (notification) => {
+      if (!notification.isRead) {
+        const result = await markAsRead(notification.id);
+        setActionError(result.ok ? null : result.message || "Couldn't update that notification.");
+      }
+
+      const route = getNotificationRoute(notification);
+      if (route) navigation.navigate(route.screen, route.params);
+    },
+    [markAsRead, navigation]
+  );
+
+  const handleMarkAllRead = useCallback(async () => {
+    const result = await markAllAsRead();
+    setActionError(result.ok ? null : result.message || "Couldn't update notifications.");
+  }, [markAllAsRead]);
+
+  const renderItem = useCallback(
+    ({ item }) => {
+      const type = NOTIFICATION_TYPES[item.type] || DEFAULT_TYPE;
+      const Icon = ICONS[type.icon];
+      const color = colorMap[type.color];
+      const tint = tintMap[type.color];
+      const isMessage = !!type.sender;
+
+      return (
+        <NotificationCard
+          icon={<Icon size={19} color={color} />}
+          iconBg={tint}
+          iconColor={color}
+          avatar={isMessage ? (item.senderAvatar ? { uri: optimizeImageUrl(item.senderAvatar, "avatar") } : null) : undefined}
+          avatarInitials={isMessage ? getInitialsFromName(item.title) : undefined}
+          title={item.title}
+          body={item.message}
+          meta={isMessage && item.itemTitle ? `Re: ${item.itemTitle}` : undefined}
+          time={item.time}
+          read={item.isRead}
+          onPress={() => handleOpen(item)}
+          style={styles.card}
+        />
+      );
+    },
+    [handleOpen, colorMap, tintMap, styles]
+  );
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
@@ -48,48 +125,65 @@ export default function NotificationsScreen() {
         title="Notifications"
         onBack={() => navigation.goBack()}
         right={
-          <Pressable hitSlop={8}>
-            <Text style={styles.markReadText}>Mark all read</Text>
-          </Pressable>
+          unreadCount > 0 ? (
+            <Pressable
+              hitSlop={8}
+              onPress={handleMarkAllRead}
+              accessibilityRole="button"
+              accessibilityLabel="Mark all notifications as read"
+            >
+              <Text style={styles.markReadText}>Mark all read</Text>
+            </Pressable>
+          ) : null
         }
       />
 
-      {UNREAD_COUNT > 0 ? (
+      {unreadCount > 0 ? (
         <View style={styles.unreadBanner}>
           <BellIcon size={16} color={colors.primary} />
-          <Text style={styles.unreadText}>{UNREAD_COUNT} unread notifications</Text>
+          <Text style={styles.unreadText}>{unreadCount} unread notifications</Text>
         </View>
       ) : null}
 
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        {NOTIFICATIONS.map((notification) => {
-          const type = NOTIFICATION_TYPES[notification.type];
-          const Icon = ICONS[type.icon];
-          const color = COLOR_MAP[type.color];
-          const tint = TINT_MAP[type.color];
+      {actionError ? <Text style={styles.actionErrorText}>{actionError}</Text> : null}
 
-          return (
-            <NotificationCard
-              key={notification.id}
-              icon={<Icon size={19} color={color} />}
-              iconBg={tint}
-              iconColor={color}
-              title={notification.title}
-              body={notification.body}
-              time={notification.time}
-              read={notification.read}
-              style={styles.card}
-            />
-          );
-        })}
-      </ScrollView>
+      {loading ? (
+        <StatusState loading />
+      ) : error ? (
+        <StatusState message={error} actionLabel="Retry" onAction={refresh} />
+      ) : (
+        <FlatList
+          data={notifications}
+          keyExtractor={(item) => item.id}
+          renderItem={renderItem}
+          style={styles.scroll}
+          contentContainerStyle={styles.content}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={colors.primary} />
+          }
+          onEndReached={loadMore}
+          onEndReachedThreshold={0.4}
+          initialNumToRender={8}
+          windowSize={7}
+          removeClippedSubviews
+          ListEmptyComponent={<Text style={styles.emptyText}>You're all caught up — no notifications yet.</Text>}
+          ListFooterComponent={
+            loadingMore ? (
+              <ActivityIndicator style={styles.footerLoader} color={colors.primary} />
+            ) : notifications.length > 0 && !hasMore ? (
+              <Text style={styles.endText}>You've seen it all</Text>
+            ) : null
+          }
+        />
+      )}
 
       <BottomNav active="Notifications" onNavigate={handleNavigate} />
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
@@ -126,5 +220,28 @@ const styles = StyleSheet.create({
   },
   card: {
     marginBottom: 0,
+  },
+  emptyText: {
+    fontSize: 13,
+    color: colors.textLight,
+    textAlign: "center",
+    paddingVertical: 40,
+  },
+  footerLoader: {
+    paddingVertical: 16,
+  },
+  endText: {
+    fontSize: 12,
+    color: colors.textLight,
+    textAlign: "center",
+    paddingVertical: 16,
+  },
+  actionErrorText: {
+    fontSize: 13,
+    fontWeight: "500",
+    color: colors.danger,
+    textAlign: "center",
+    marginHorizontal: 20,
+    marginBottom: 12,
   },
 });

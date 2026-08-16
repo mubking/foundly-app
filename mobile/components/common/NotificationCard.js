@@ -1,15 +1,42 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { View, Text, Pressable, StyleSheet } from "react-native";
 
-import colors from "../../constants/colors";
+import { useTheme } from "../../context/ThemeContext";
+import Avatar from "../Avatar/Avatar";
 
-export default function NotificationCard({ icon, iconBg, iconColor, title, body, time, read, onPress, style }) {
+/**
+ * `avatar`/`avatarInitials` render the sender's photo instead of the
+ * type-based `icon` badge — only ever passed for "new_message" (see
+ * NotificationsScreen), which is the one type with a real person, not just
+ * an event type, behind it. `meta` is an optional extra line (e.g. "Re:
+ * {item title}") below `body`.
+ */
+export default function NotificationCard({
+  icon,
+  iconBg,
+  iconColor,
+  avatar,
+  avatarInitials,
+  title,
+  body,
+  meta,
+  time,
+  read,
+  onPress,
+  style,
+}) {
+  const colors = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
     <Pressable
       onPress={onPress}
       style={[styles.card, read ? styles.cardRead : { backgroundColor: `${iconColor}0D`, borderColor: `${iconColor}33` }, style]}
     >
-      <View style={[styles.iconBadge, { backgroundColor: iconBg }]}>{icon}</View>
+      {avatarInitials !== undefined ? (
+        <Avatar size={40} initials={avatarInitials} source={avatar} />
+      ) : (
+        <View style={[styles.iconBadge, { backgroundColor: iconBg }]}>{icon}</View>
+      )}
 
       <View style={styles.textWrap}>
         <View style={styles.titleRow}>
@@ -17,13 +44,18 @@ export default function NotificationCard({ icon, iconBg, iconColor, title, body,
           {!read ? <View style={styles.unreadDot} /> : null}
         </View>
         <Text style={styles.body}>{body}</Text>
+        {meta ? (
+          <Text style={styles.meta} numberOfLines={1}>
+            {meta}
+          </Text>
+        ) : null}
         <Text style={styles.time}>{time}</Text>
       </View>
     </Pressable>
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors) => StyleSheet.create({
   card: {
     flexDirection: "row",
     alignItems: "flex-start",
@@ -70,6 +102,12 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 18,
     color: colors.textLight,
+  },
+  meta: {
+    fontSize: 11,
+    fontStyle: "italic",
+    color: colors.subtle,
+    marginTop: 2,
   },
   time: {
     fontSize: 12,

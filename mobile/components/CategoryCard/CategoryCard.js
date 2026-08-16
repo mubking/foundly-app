@@ -1,19 +1,21 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { Pressable, Text, StyleSheet } from "react-native";
 
-import colors from "../../constants/colors";
+import { useTheme } from "../../context/ThemeContext";
 
 export default function CategoryCard({ emoji, label, count, onPress }) {
+  const colors = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
     <Pressable onPress={onPress} style={styles.base}>
       <Text style={styles.emoji}>{emoji}</Text>
       <Text style={styles.label}>{label}</Text>
-      <Text style={styles.count}>{count}</Text>
+      {count != null ? <Text style={styles.count}>{count}</Text> : null}
     </Pressable>
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors) => StyleSheet.create({
   base: {
     width: 68,
     alignItems: "center",

@@ -1,12 +1,14 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { View, Text, StyleSheet } from "react-native";
 
-import colors from "../../constants/colors";
+import { useTheme } from "../../context/ThemeContext";
 import CameraIcon from "./CameraIcon";
 import ImageIcon from "./ImageIcon";
 import Button from "../Button/Button";
 
 export default function UploadZone({ onCamera, onGallery, style }) {
+  const colors = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
     <View style={[styles.zone, style]}>
       <View style={styles.iconBadge}>
@@ -40,7 +42,7 @@ export default function UploadZone({ onCamera, onGallery, style }) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors) => StyleSheet.create({
   zone: {
     height: 180,
     borderRadius: 24,

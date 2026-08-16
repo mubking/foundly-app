@@ -1,44 +1,23 @@
-import mongoose from "mongoose";
-
 import { connectDB } from "@/lib/db";
 import { getAuthUser, AuthError } from "@/lib/auth";
 import { parsePagination } from "@/utils/pagination";
 import Conversation from "@/models/Conversation";
-import Message from "@/models/Message";
-// Not used directly, but Conversation.participants/lastMessage only store
-// refs — Mongoose needs the User/Message schemas registered in this
-// module's scope before .populate() can resolve them.
+// Not used directly, but Conversation.participants/lastMessage/item only
+// store refs — Mongoose needs the User/Message/LostItem/FoundItem schemas
+// registered in this module's scope before .populate() can resolve them.
+// item's polymorphic refPath (see models/Conversation.js) resolves against
+// whichever of LostItem/FoundItem this document's own itemType names.
 import "@/models/User";
+import "@/models/LostItem";
+import "@/models/FoundItem";
 import { success, error } from "@/lib/response";
-
-const PARTICIPANT_SELECT = "firstName lastName avatar";
-const LAST_MESSAGE_SELECT = "text sender createdAt read";
-
-function toConversationResult(conversation, currentUserId, unreadCounts) {
-  const other = conversation.participants.find((p) => p._id.toString() !== currentUserId);
-
-  return {
-    id: conversation._id,
-    participant: other
-      ? {
-          id: other._id,
-          firstName: other.firstName,
-          lastName: other.lastName,
-          avatar: other.avatar,
-        }
-      : null,
-    lastMessage: conversation.lastMessage
-      ? {
-          id: conversation.lastMessage._id,
-          text: conversation.lastMessage.text,
-          sender: conversation.lastMessage.sender,
-          createdAt: conversation.lastMessage.createdAt,
-        }
-      : null,
-    unreadCount: unreadCounts.get(conversation._id.toString()) || 0,
-    updatedAt: conversation.updatedAt,
-  };
-}
+import {
+  PARTICIPANT_SELECT,
+  LAST_MESSAGE_SELECT,
+  ITEM_SELECT,
+  toConversationResult,
+  getUnreadCounts,
+} from "@/services/conversation.service";
 
 export async function GET(request) {
   try {
@@ -61,6 +40,7 @@ export async function GET(request) {
       Conversation.find(filter)
         .populate({ path: "participants", select: PARTICIPANT_SELECT })
         .populate({ path: "lastMessage", select: LAST_MESSAGE_SELECT })
+        .populate({ path: "item", select: ITEM_SELECT })
         .sort({ updatedAt: -1 })
         .skip(skip)
         .limit(limit)
@@ -68,21 +48,10 @@ export async function GET(request) {
       Conversation.countDocuments(filter),
     ]);
 
-    // Unread = messages in one of these conversations, not sent by the
-    // caller, not yet marked read. Computed in one aggregation rather than
-    // per-conversation queries.
-    const conversationIds = conversations.map((c) => c._id);
-    const unreadCounts = await Message.aggregate([
-      {
-        $match: {
-          conversation: { $in: conversationIds },
-          sender: { $ne: new mongoose.Types.ObjectId(user.id) },
-          read: false,
-        },
-      },
-      { $group: { _id: "$conversation", count: { $sum: 1 } } },
-    ]);
-    const unreadMap = new Map(unreadCounts.map((u) => [u._id.toString(), u.count]));
+    const unreadMap = await getUnreadCounts(
+      conversations.map((c) => c._id),
+      user.id
+    );
 
     return success({
       items: conversations.map((c) => toConversationResult(c, user.id, unreadMap)),

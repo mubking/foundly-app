@@ -1,10 +1,12 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { View, Text, StyleSheet } from "react-native";
 
-import colors from "../../constants/colors";
+import { useTheme } from "../../context/ThemeContext";
 import Card from "./Card";
 
 export default function SettingsSection({ title, children, style }) {
+  const colors = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
     <View style={[styles.wrap, style]}>
       <Text style={styles.title}>{title}</Text>
@@ -13,7 +15,7 @@ export default function SettingsSection({ title, children, style }) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors) => StyleSheet.create({
   wrap: {
     marginBottom: 20,
   },

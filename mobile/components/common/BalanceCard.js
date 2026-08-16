@@ -2,9 +2,10 @@ import React from "react";
 import { View, Text, StyleSheet } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 
-import colors from "../../constants/colors";
+import { useTheme } from "../../context/ThemeContext";
 
 export default function BalanceCard({ totalEarned, subtitle, breakdown, style }) {
+  const colors = useTheme();
   return (
     <LinearGradient
       colors={[colors.primaryDeep, colors.primary]}

@@ -7,6 +7,7 @@ import Claim from "@/models/Claim";
 import LostItem from "@/models/LostItem";
 import FoundItem from "@/models/FoundItem";
 import { success, error } from "@/lib/response";
+import { applyClaimReview } from "@/services/claim.service";
 
 // Maps Claim.itemType (a model-name string, required by the refPath on
 // Claim.item) back to the actual model, so we can look up who owns the
@@ -38,7 +39,7 @@ export async function PATCH(request, context) {
     }
 
     const ItemModel = ITEM_MODELS[claim.itemType];
-    const item = await ItemModel.findById(claim.item).select("owner").lean();
+    const item = await ItemModel.findById(claim.item).select("owner title").lean();
     if (!item) {
       return error("Item not found", 404);
     }
@@ -66,21 +67,9 @@ export async function PATCH(request, context) {
       return error("Claim has already been reviewed", 409);
     }
 
-    if (status === "approved") {
-      claim.status = "approved";
+    await applyClaimReview({ claim, item, ItemModel, status });
 
-      await Promise.all([
-        claim.save(),
-        ItemModel.findByIdAndUpdate(claim.item, { status: "claimed" }, { runValidators: true }),
-      ]);
-
-      return success(undefined, "Claim approved successfully");
-    }
-
-    claim.status = "rejected";
-    await claim.save();
-
-    return success(undefined, "Claim rejected successfully");
+    return success(undefined, status === "approved" ? "Claim approved successfully" : "Claim rejected successfully");
   } catch (err) {
     if (err instanceof mongoose.Error.ValidationError) {
       const message = Object.values(err.errors)[0]?.message || "Invalid request body";

@@ -1,11 +1,13 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { Pressable, Text, View, StyleSheet } from "react-native";
 
-import colors from "../../constants/colors";
+import { useTheme } from "../../context/ThemeContext";
 import SearchIcon from "../common/SearchIcon";
 import FilterIcon from "../common/FilterIcon";
 
 export default function SearchBar({ placeholder = "Search…", onPress, style }) {
+  const colors = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
     <Pressable onPress={onPress} style={[styles.base, style]}>
       <SearchIcon size={18} color={colors.subtle} />
@@ -17,7 +19,7 @@ export default function SearchBar({ placeholder = "Search…", onPress, style })
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors) => StyleSheet.create({
   base: {
     flexDirection: "row",
     alignItems: "center",

@@ -1,186 +1,233 @@
-import React, { useState } from "react";
-import { View, Text, ScrollView, Pressable, StyleSheet } from "react-native";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { View, ScrollView, FlatList, RefreshControl, StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useRoute } from "@react-navigation/native";
 
-import colors from "../../constants/colors";
-import { ITEMS } from "../../constants/homeMockData";
+import { useTheme } from "../../context/ThemeContext";
+import { useAuth } from "../../context/AuthContext";
+import { useSearchController, toSavedSearchFilters } from "../../hooks/useSearchController";
+import { useSearchSuggestions } from "../../hooks/useSearchSuggestions";
+import { useRecentSearches } from "../../hooks/useRecentSearches";
+import { createSavedSearch } from "../../services/search";
+import { optimizeImageUrl, prefetchImage } from "../../utils/cloudinaryImage";
 
-import ArrowLeftIcon from "../../components/common/ArrowLeftIcon";
-import FilterIcon from "../../components/common/FilterIcon";
-import BarChartIcon from "../../components/common/BarChartIcon";
-import GridIcon from "../../components/common/GridIcon";
-import MapIcon from "../../components/common/MapIcon";
-import SearchInput from "../../components/common/SearchInput";
-import FilterChips from "../../components/common/FilterChips";
-import ViewToggle from "../../components/common/ViewToggle";
+import SearchHeader from "../../components/SearchHeader/SearchHeader";
 import ItemCardRow from "../../components/ItemCardRow/ItemCardRow";
 import ItemCardGrid from "../../components/ItemCardGrid/ItemCardGrid";
 import SearchMapView from "../../components/common/SearchMapView";
 import BottomNav from "../../components/BottomNav/BottomNav";
+import BottomSheet from "../../components/common/BottomSheet";
+import FilterSheetContent from "../../components/common/FilterSheetContent";
+import ActiveFiltersBar from "../../components/common/ActiveFiltersBar";
+import SkeletonCard from "../../components/common/SkeletonCard";
+import StatusState from "../../components/common/StatusState";
+import SearchEmptyState from "../../components/common/SearchEmptyState";
+import RecentSearchesList from "../../components/common/RecentSearchesList";
+import SearchSuggestionsList from "../../components/common/SearchSuggestionsList";
 
-const TYPE_FILTERS = [
-  { label: "All", value: "All" },
-  { label: "Lost", value: "Lost" },
-  { label: "Found", value: "Found" },
-  { label: "With Reward", value: "WithReward" },
-  { label: "Verified", value: "Verified" },
-];
-
-const SORT_OPTIONS = [
-  { label: "Newest First", value: "Newest" },
-  { label: "Nearest", value: "Nearest" },
-  { label: "Reward $$$", value: "Reward" },
-];
-
-const VIEW_OPTIONS = [
-  { value: "list", icon: BarChartIcon },
-  { value: "grid", icon: GridIcon },
-  { value: "map", icon: MapIcon },
-];
-
-const RESULTS = [...ITEMS, ...ITEMS.slice(0, 2)];
+const SKELETON_COUNT = 6;
 
 export default function SearchScreen() {
+  const colors = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const navigation = useNavigation();
-  const [view, setView] = useState("list");
-  const [query, setQuery] = useState("");
-  const [showFilters, setShowFilters] = useState(false);
-  const [sortBy, setSortBy] = useState("Newest");
-  const [typeFilter, setTypeFilter] = useState("All");
+  const route = useRoute();
+  const { isAuthenticated } = useAuth();
 
-  const goToItem = () => navigation.navigate("ItemDetails");
+  const [view, setView] = useState("list");
+  const [showFilterSheet, setShowFilterSheet] = useState(false);
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
+
+  const {
+    filters,
+    setFilter,
+    resetFilters,
+    applyFilters,
+    activeFilterChips,
+    removeFilterChip,
+    items,
+    meta,
+    status,
+    errorMessage,
+    refreshing,
+    isLoadingMore,
+    page,
+    refresh,
+    retry,
+    loadMore,
+  } = useSearchController();
+
+  const { suggestions } = useSearchSuggestions(isSearchFocused ? filters.q : "");
+  const recentSearchesState = useRecentSearches({ enabled: isAuthenticated });
+
+  // Re-running a saved search (SavedSearchesScreen navigates here with its
+  // filters) — consumed once, then cleared so navigating back-and-forth
+  // doesn't keep re-applying stale params.
+  useEffect(() => {
+    if (!route.params?.savedFilters) return;
+    applyFilters(route.params.savedFilters);
+    navigation.setParams({ savedFilters: undefined });
+  }, [route.params?.savedFilters, applyFilters, navigation]);
+
+  const goToItem = useCallback(
+    (item) => {
+      prefetchImage(optimizeImageUrl(item.imageUrl, "detail"));
+      navigation.navigate("ItemDetails", { id: item.id });
+    },
+    [navigation]
+  );
   const handleNavigate = (route) => {
     if (route === "Search") return;
     navigation.navigate(route);
   };
 
+  const dismissOverlay = () => setIsSearchFocused(false);
+  // A short delay so a tap on a suggestion/recent-search row registers
+  // before the blur it also triggers would otherwise hide the row first.
+  const handleQueryBlur = () => setTimeout(dismissOverlay, 150);
+
+  const selectQuery = useCallback(
+    (value) => {
+      setFilter("q", value);
+      dismissOverlay();
+    },
+    [setFilter]
+  );
+  const selectCategory = useCallback(
+    (value) => {
+      setFilter("category", value);
+      dismissOverlay();
+    },
+    [setFilter]
+  );
+
+  const handleSaveSearch = useCallback(async () => {
+    try {
+      await createSavedSearch({ filters: toSavedSearchFilters(filters) });
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, message: err.message };
+    }
+  }, [filters]);
+
+  const renderItem = useCallback(
+    ({ item }) =>
+      view === "grid" ? (
+        <ItemCardGrid item={item} onPress={goToItem} style={styles.gridCell} />
+      ) : (
+        <ItemCardRow item={item} onPress={goToItem} />
+      ),
+    [view, goToItem, styles.gridCell]
+  );
+
+  const showOverlay = isSearchFocused;
+  const showSkeleton = !showOverlay && view !== "map" && status === "loading";
+  const showEmpty = !showOverlay && view !== "map" && status === "success" && meta.total === 0;
+
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
-      <View style={styles.header}>
-        <View style={styles.searchRow}>
-          <Pressable style={styles.backButton} onPress={() => navigation.goBack()}>
-            <ArrowLeftIcon size={20} color={colors.text} />
-          </Pressable>
+      <SearchHeader
+        onBack={() => navigation.goBack()}
+        query={filters.q}
+        onQueryChange={(value) => setFilter("q", value)}
+        onQueryFocus={() => setIsSearchFocused(true)}
+        onQueryBlur={handleQueryBlur}
+        onOpenFilters={() => setShowFilterSheet(true)}
+        activeFilterCount={activeFilterChips.length}
+        onOpenSavedSearches={() => navigation.navigate("SavedSearches")}
+        resultsTotal={meta.total}
+        view={view}
+        onViewChange={setView}
+      />
 
-          <SearchInput
-            value={query}
-            onChangeText={setQuery}
-            placeholder="Search items, locations…"
-            autoFocus
-          />
+      <ActiveFiltersBar chips={activeFilterChips} onRemove={removeFilterChip} onClearAll={resetFilters} />
 
-          <Pressable
-            style={[styles.filterButton, showFilters && styles.filterButtonActive]}
-            onPress={() => setShowFilters((v) => !v)}
-          >
-            <FilterIcon size={18} color={showFilters ? "#fff" : colors.ink2} />
-          </Pressable>
-        </View>
-
-        {showFilters ? (
-          <View style={styles.filtersPanel}>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.typeFiltersRow}>
-              <FilterChips options={TYPE_FILTERS} active={typeFilter} onChange={setTypeFilter} />
-            </ScrollView>
-
-            <FilterChips
-              options={SORT_OPTIONS}
-              active={sortBy}
-              onChange={setSortBy}
-              variant="soft"
-              equalWidth
+      {showOverlay ? (
+        <ScrollView style={styles.overlay} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+          {!filters.q.trim() ? (
+            <RecentSearchesList
+              recentSearches={recentSearchesState.recentSearches}
+              onSelect={selectQuery}
+              onRemove={recentSearchesState.remove}
+              onClearAll={recentSearchesState.clearAll}
+              style={styles.overlaySection}
             />
-          </View>
-        ) : null}
-
-        <View style={styles.resultsBar}>
-          <Text style={styles.resultsText}>
-            <Text style={styles.resultsCount}>48</Text> results{query ? ` for "${query}"` : " near you"}
-          </Text>
-          <ViewToggle options={VIEW_OPTIONS} active={view} onChange={setView} />
+          ) : null}
+          <SearchSuggestionsList
+            suggestions={suggestions}
+            onSelectCategory={selectCategory}
+            onSelectQuery={selectQuery}
+            style={styles.overlaySection}
+          />
+        </ScrollView>
+      ) : view === "map" ? (
+        <ScrollView style={styles.scroll} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+          <SearchMapView
+            lostCount={items.filter((item) => item.type === "lost").length}
+            foundCount={items.filter((item) => item.type === "found").length}
+          />
+        </ScrollView>
+      ) : showSkeleton ? (
+        <View style={[styles.listContent, view === "grid" ? styles.skeletonGrid : styles.skeletonList]}>
+          {Array.from({ length: SKELETON_COUNT }).map((_, index) => (
+            <SkeletonCard key={index} variant={view === "grid" ? "grid" : "row"} style={view === "grid" ? styles.skeletonGridCell : undefined} />
+          ))}
         </View>
-      </View>
-
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        {view === "list" ? (
-          <View style={styles.listWrap}>
-            {RESULTS.map((item, index) => (
-              <ItemCardRow key={`${item.id}-${index}`} item={item} onPress={goToItem} />
-            ))}
-          </View>
-        ) : null}
-
-        {view === "grid" ? (
-          <View style={styles.gridWrap}>
-            {RESULTS.map((item, index) => (
-              <ItemCardGrid key={`${item.id}-${index}`} item={item} onPress={goToItem} style={styles.gridCell} />
-            ))}
-          </View>
-        ) : null}
-
-        {view === "map" ? <SearchMapView lostCount={21} foundCount={27} onPinPress={goToItem} /> : null}
-      </ScrollView>
+      ) : status === "error" ? (
+        <StatusState message={errorMessage} actionLabel="Retry" onAction={retry} />
+      ) : showEmpty ? (
+        <SearchEmptyState
+          recommendations={meta.recommendations}
+          onSelectCategory={selectCategory}
+          onSelectCity={(value) => setFilter("city", value)}
+          onSelectColor={(value) => setFilter("color", value)}
+          onSelectBrand={(value) => setFilter("brand", value)}
+        />
+      ) : (
+        <FlatList
+          key={view}
+          data={items}
+          keyExtractor={(item) => item.id}
+          renderItem={renderItem}
+          numColumns={view === "grid" ? 2 : 1}
+          columnWrapperStyle={view === "grid" ? styles.gridRow : undefined}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+          initialNumToRender={8}
+          windowSize={7}
+          removeClippedSubviews
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={colors.primary} />}
+          onEndReached={loadMore}
+          onEndReachedThreshold={0.4}
+          ListFooterComponent={
+            isLoadingMore ? (
+              <SkeletonCard variant={view === "grid" ? "grid" : "row"} style={styles.footerSkeleton} />
+            ) : items.length > 0 && page >= meta.totalPages ? (
+              <StatusState message="You've seen it all" tone="neutral" style={styles.endText} />
+            ) : null
+          }
+        />
+      )}
 
       <BottomNav active="Search" onNavigate={handleNavigate} />
+
+      <BottomSheet visible={showFilterSheet} onClose={() => setShowFilterSheet(false)}>
+        <FilterSheetContent
+          filters={filters}
+          onChange={setFilter}
+          onReset={resetFilters}
+          onApply={() => setShowFilterSheet(false)}
+          onSave={isAuthenticated ? handleSaveSearch : null}
+        />
+      </BottomSheet>
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
-  },
-  header: {
-    paddingHorizontal: 20,
-    paddingTop: 4,
-    paddingBottom: 12,
-    gap: 12,
-  },
-  searchRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 16,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: colors.surface,
-  },
-  filterButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 16,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: colors.surface,
-  },
-  filterButtonActive: {
-    backgroundColor: colors.primary,
-  },
-  filtersPanel: {
-    gap: 10,
-  },
-  typeFiltersRow: {
-    paddingRight: 8,
-  },
-  resultsBar: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  resultsText: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: colors.textLight,
-  },
-  resultsCount: {
-    color: colors.text,
-    fontWeight: "700",
   },
   scroll: {
     flex: 1,
@@ -189,15 +236,39 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 16,
   },
-  listWrap: {
+  overlay: {
+    flex: 1,
+  },
+  overlaySection: {
+    marginTop: 16,
+  },
+  listContent: {
+    flexGrow: 1,
+    paddingHorizontal: 20,
+    paddingBottom: 16,
     gap: 10,
   },
-  gridWrap: {
+  gridRow: {
+    gap: 12,
+  },
+  gridCell: {
+    flex: 1,
+  },
+  skeletonList: {},
+  skeletonGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 12,
   },
-  gridCell: {
+  skeletonGridCell: {
     width: "47%",
+  },
+  footerSkeleton: {
+    marginHorizontal: 20,
+    marginTop: 10,
+  },
+  endText: {
+    flex: 0,
+    paddingVertical: 16,
   },
 });

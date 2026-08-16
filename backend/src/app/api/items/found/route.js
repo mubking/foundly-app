@@ -1,27 +1,33 @@
 import mongoose from "mongoose";
 
 import { connectDB } from "@/lib/db";
-import { verifyToken } from "@/lib/jwt";
+import { requireActiveUser, AuthError } from "@/lib/auth";
+import { rateLimitOrError } from "@/lib/rateLimit";
 import { createFoundItemSchema } from "@/validations/found-item.validation";
 import FoundItem from "@/models/FoundItem";
 import { success, error } from "@/lib/response";
+import { deriveKeywords, findPossibleDuplicates } from "@/services/duplicate-detection.service";
+import { evaluateItemCreation } from "@/services/spam-detection.service";
+import { matchFoundItem } from "@/services/matching.service";
+import { matchSavedSearches } from "@/services/search.service";
 
 export async function POST(request) {
   try {
-    // 1. Authenticate — read "Authorization: Bearer <token>".
-    const authHeader = request.headers.get("authorization") || "";
-    const [scheme, token] = authHeader.split(" ");
-
-    if (scheme !== "Bearer" || !token) {
-      return error("Missing or malformed Authorization header", 401);
-    }
-
-    let decoded;
+    // 1. Authenticate.
+    let user;
     try {
-      decoded = verifyToken(token);
-    } catch {
-      return error("Invalid or expired token", 401);
+      user = await requireActiveUser(request);
+    } catch (err) {
+      if (err instanceof AuthError) return error(err.message, err.status);
+      throw err;
     }
+
+    const limited = await rateLimitOrError({
+      key: `create-item:user:${user.id}`,
+      limit: 10,
+      windowSeconds: 60 * 60,
+    });
+    if (limited) return limited;
 
     // 2. Parse the request body.
     let body;
@@ -40,14 +46,47 @@ export async function POST(request) {
       return error(message, 400);
     }
 
-    // 4. Connect to MongoDB and create the document.
+    const { acknowledgeDuplicates, ...itemData } = parsed.data;
+
+    // 4. Connect to MongoDB.
     await connectDB();
 
+    const keywords = deriveKeywords({ title: itemData.title, description: itemData.description });
+
+    const possibleMatches = await findPossibleDuplicates({
+      type: "found",
+      title: itemData.title,
+      description: itemData.description,
+      category: itemData.category,
+      brand: itemData.brand,
+      color: itemData.color,
+      keywords,
+      location: itemData.location,
+      date: itemData.dateFound,
+      ownerId: user.id,
+    });
+
+    // 5. Duplicate check — warn, never silently reject or silently create.
+    // Skipped once the user has acknowledged and resubmitted.
+    if (!acknowledgeDuplicates && possibleMatches.length > 0) {
+      return success(
+        { duplicateWarning: true, possibleMatches },
+        "We found similar items already on Foundly.",
+        200
+      );
+    }
+
     const foundItem = await FoundItem.create({
-      ...parsed.data,
-      owner: decoded.id, // always from the verified token, never the body
+      ...itemData,
+      keywords,
+      owner: user.id, // always from the verified token, never the body
       // status is intentionally omitted — the model defaults it to "open"
     });
+
+    // Fire-and-forget — never allowed to fail or delay a successful create.
+    evaluateItemCreation(user.id, possibleMatches);
+    matchFoundItem(foundItem);
+    matchSavedSearches({ type: "found", item: foundItem });
 
     return success(foundItem, "Found item reported successfully", 201);
   } catch (err) {

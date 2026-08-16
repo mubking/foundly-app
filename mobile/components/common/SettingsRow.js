@@ -1,10 +1,12 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { View, Text, Pressable, StyleSheet } from "react-native";
 
-import colors from "../../constants/colors";
+import { useTheme } from "../../context/ThemeContext";
 import ChevronRightIcon from "./ChevronRightIcon";
 
 export default function SettingsRow({ icon, label, subtitle, right, danger = false, last = false, onPress }) {
+  const colors = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
     <Pressable onPress={onPress} style={[styles.row, !last && styles.rowBorder]}>
       <View style={[styles.iconBadge, { backgroundColor: danger ? colors.redTint : colors.surface }]}>{icon}</View>
@@ -19,7 +21,7 @@ export default function SettingsRow({ icon, label, subtitle, right, danger = fal
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors) => StyleSheet.create({
   row: {
     flexDirection: "row",
     alignItems: "center",

@@ -3,11 +3,16 @@ import { getAuthUser, AuthError } from "@/lib/auth";
 import { parsePagination } from "@/utils/pagination";
 import Notification from "@/models/Notification";
 import { success, error } from "@/lib/response";
+import { withRequestLogging } from "@/lib/logger";
 
 // Explicit field list — never selects recipient/__v, and updatedAt is
 // simply not requested. _id comes back regardless (renamed to `id` in
 // the mapper below), which is the only identifying field we return.
-const NOTIFICATION_SELECT = "title message type isRead createdAt";
+// targetType/targetId let a client deep-link to whatever the notification
+// is about (e.g. the item a claim was reviewed on) — both are nullable on
+// the model for notifications that aren't about a specific item.
+const NOTIFICATION_SELECT =
+  "title message type isRead targetType targetId senderAvatar itemTitle createdAt";
 
 function toNotificationResult(notification) {
   return {
@@ -16,11 +21,15 @@ function toNotificationResult(notification) {
     message: notification.message,
     type: notification.type,
     isRead: notification.isRead,
+    targetType: notification.targetType,
+    targetId: notification.targetId,
+    senderAvatar: notification.senderAvatar || null,
+    itemTitle: notification.itemTitle || null,
     createdAt: notification.createdAt,
   };
 }
 
-export async function GET(request) {
+async function handleGET(request) {
   try {
     let user;
     try {
@@ -62,3 +71,5 @@ export async function GET(request) {
     return error("Something went wrong while fetching notifications", 500);
   }
 }
+
+export const GET = withRequestLogging(handleGET, { route: "/api/notifications" });

@@ -1,10 +1,12 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { View, Text, Pressable, StyleSheet } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 
-import colors from "../../constants/colors";
+import { useTheme } from "../../context/ThemeContext";
 
 export default function PhotoSourceButton({ icon, label, variant = "gradient", onPress, style }) {
+  const colors = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const isGradient = variant === "gradient";
   const Container = isGradient ? LinearGradient : View;
   const containerProps = isGradient
@@ -21,7 +23,7 @@ export default function PhotoSourceButton({ icon, label, variant = "gradient", o
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors) => StyleSheet.create({
   pressable: {
     flex: 1,
   },

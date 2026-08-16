@@ -10,6 +10,7 @@ import "@/models/User";
 import { success, error } from "@/lib/response";
 import { getAuthUser, AuthError } from "@/lib/auth";
 import { updateLostItemSchema, updateFoundItemSchema } from "@/validations/update-item.validation";
+import { matchLostItem, matchFoundItem } from "@/services/matching.service";
 
 // Owner is populated with only these fields — never email, password, or
 // anything else from the User document.
@@ -117,6 +118,13 @@ export async function PATCH(request, context) {
     )
       .select(ITEM_SELECT)
       .lean();
+
+    // Fire-and-forget — an edit can change title/category/location/etc.
+    // enough to affect matching, so this rescans the same as a fresh
+    // create (Phase 2: "an item is edited"). Never allowed to fail or
+    // delay a successful update.
+    if (type === "lost") matchLostItem(updated);
+    else matchFoundItem(updated);
 
     return success({ ...updated, type }, "Item updated successfully");
   } catch (err) {

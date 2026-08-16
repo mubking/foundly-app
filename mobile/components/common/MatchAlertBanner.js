@@ -1,11 +1,13 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { Pressable, Text, View, StyleSheet } from "react-native";
 
-import colors from "../../constants/colors";
+import { useTheme } from "../../context/ThemeContext";
 import ZapIcon from "./ZapIcon";
 import ChevronRightIcon from "./ChevronRightIcon";
 
 export default function MatchAlertBanner({ title, subtitle, onPress, style }) {
+  const colors = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
     <Pressable onPress={onPress} style={[styles.base, style]}>
       <View style={styles.iconWrap}>
@@ -24,7 +26,7 @@ export default function MatchAlertBanner({ title, subtitle, onPress, style }) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors) => StyleSheet.create({
   base: {
     flexDirection: "row",
     alignItems: "center",

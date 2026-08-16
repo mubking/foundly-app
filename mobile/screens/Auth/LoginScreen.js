@@ -1,10 +1,10 @@
-import React, { useState } from "react";
+import React, { useRef, useState, useMemo } from "react";
 import { View, Text, ScrollView, Pressable, StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 
-import colors from "../../constants/colors";
+import { useTheme } from "../../context/ThemeContext";
 import Header from "../../components/Header/Header";
 import BrandMark from "../../components/common/BrandMark";
 import Input from "../../components/Input/Input";
@@ -12,82 +12,126 @@ import Button from "../../components/Button/Button";
 import Divider from "../../components/common/Divider";
 import SocialButton from "../../components/common/SocialButton";
 import MailIcon from "../../components/common/MailIcon";
+import KeyboardAvoidingScreen from "../../components/common/KeyboardAvoidingScreen";
+import { useAuth } from "../../context/AuthContext";
 
 export default function LoginScreen() {
+  const colors = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const navigation = useNavigation();
+  const { login } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  const passwordRef = useRef(null);
+
+  const handleSignIn = async () => {
+    // Belt-and-suspenders alongside the Button's `disabled` prop: closes
+    // the tiny window where a second tap could land before the disabled
+    // state has re-rendered.
+    if (submitting) return;
+    setError("");
+    setSubmitting(true);
+    try {
+      await login(email, password);
+      navigation.reset({ index: 0, routes: [{ name: "Home" }] });
+    } catch (err) {
+      setError(err.message || "Something went wrong. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
       <Header onBack={() => navigation.goBack()} />
 
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.content}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-      >
-        <BrandMark style={styles.brand} />
+      <KeyboardAvoidingScreen>
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={styles.content}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <BrandMark style={styles.brand} />
 
-        <Text style={styles.title}>Welcome back</Text>
-        <Text style={styles.subtitle}>Sign in to your Foundly account.</Text>
+          <Text style={styles.title}>Welcome back</Text>
+          <Text style={styles.subtitle}>Sign in to your Foundly account.</Text>
 
-        <View style={styles.form}>
-          <Input
-            label="Email"
-            placeholder="alex@example.com"
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            icon={<MailIcon size={17} color={colors.textLight} />}
-          />
-
-          <Input
-            label="Password"
-            placeholder="Your password"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-          />
-
-          <Pressable onPress={() => navigation.navigate("ForgotPassword")} style={styles.forgotButton}>
-            <Text style={styles.forgotText}>Forgot password?</Text>
-          </Pressable>
-
-          <Button fullWidth onPress={() => navigation.navigate("Home")} style={styles.signInButton}>
-            Sign In
-          </Button>
-
-          <Divider label="or" />
-
-          <View style={styles.socialRow}>
-            <SocialButton
-              variant="light"
-              icon={<FontAwesome name="google" size={16} color={colors.text} />}
-              label="Google"
+          <View style={styles.form}>
+            <Input
+              label="Email"
+              placeholder="alex@example.com"
+              value={email}
+              onChangeText={setEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoComplete="email"
+              textContentType="emailAddress"
+              returnKeyType="next"
+              onSubmitEditing={() => passwordRef.current?.focus()}
+              icon={<MailIcon size={17} color={colors.textLight} />}
             />
-            <SocialButton
-              variant="dark"
-              icon={<FontAwesome name="apple" size={18} color="#fff" />}
-              label="Apple"
-            />
-          </View>
 
-          <Text style={styles.footerText}>
-            No account?{" "}
-            <Text style={styles.footerLink} onPress={() => navigation.navigate("Signup")}>
-              Sign up free
+            <Input
+              ref={passwordRef}
+              label="Password"
+              placeholder="Your password"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+              autoComplete="password"
+              textContentType="password"
+              returnKeyType="go"
+              onSubmitEditing={handleSignIn}
+            />
+
+            <Pressable onPress={() => navigation.navigate("ForgotPassword")} style={styles.forgotButton}>
+              <Text style={styles.forgotText}>Forgot password?</Text>
+            </Pressable>
+
+            {error ? <Text style={styles.errorText}>{error}</Text> : null}
+
+            <Button
+              fullWidth
+              onPress={handleSignIn}
+              disabled={submitting || !email || !password}
+              style={styles.signInButton}
+            >
+              {submitting ? "Signing in..." : "Sign In"}
+            </Button>
+
+            <Divider label="or" />
+
+            <View style={styles.socialRow}>
+              <SocialButton
+                variant="light"
+                icon={<FontAwesome name="google" size={16} color={colors.text} />}
+                label="Google"
+              />
+              <SocialButton
+                variant="dark"
+                icon={<FontAwesome name="apple" size={18} color="#fff" />}
+                label="Apple"
+              />
+            </View>
+
+            <Text style={styles.footerText}>
+              No account?{" "}
+              <Text style={styles.footerLink} onPress={() => navigation.navigate("Signup")}>
+                Sign up free
+              </Text>
             </Text>
-          </Text>
-        </View>
-      </ScrollView>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingScreen>
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.surface,
@@ -126,6 +170,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
     color: colors.primary,
+  },
+  errorText: {
+    fontSize: 13,
+    fontWeight: "500",
+    color: colors.danger,
+    textAlign: "center",
   },
   signInButton: {
     marginTop: 4,

@@ -1,10 +1,12 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { View, Text, StyleSheet } from "react-native";
 
-import colors from "../../constants/colors";
+import { useTheme } from "../../context/ThemeContext";
 import TargetIcon from "./TargetIcon";
 
 export default function BrandMark({ style }) {
+  const colors = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
     <View style={[styles.row, style]}>
       <View style={styles.badge}>
@@ -15,7 +17,7 @@ export default function BrandMark({ style }) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors) => StyleSheet.create({
   row: {
     flexDirection: "row",
     alignItems: "center",

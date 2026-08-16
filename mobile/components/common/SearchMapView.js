@@ -1,7 +1,7 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { View, Text, Image, Pressable, StyleSheet } from "react-native";
 
-import colors from "../../constants/colors";
+import { useTheme } from "../../context/ThemeContext";
 import images from "../../constants/images";
 import Card from "./Card";
 import MapPinIcon from "./MapPinIcon";
@@ -15,6 +15,8 @@ const PINS = [
 ];
 
 export default function SearchMapView({ lostCount, foundCount, onPinPress }) {
+  const colors = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
     <View style={styles.wrap}>
       <Image source={images.misc.mapPlaceholder} style={styles.image} />
@@ -46,7 +48,7 @@ export default function SearchMapView({ lostCount, foundCount, onPinPress }) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors) => StyleSheet.create({
   wrap: {
     height: 520,
     borderRadius: 24,

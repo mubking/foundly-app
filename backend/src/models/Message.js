@@ -25,6 +25,16 @@ const messageSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+
+    // System-generated context messages (e.g. "so-and-so submitted a claim
+    // for X" — see claims/create/route.js) render via SystemMessage on the
+    // client instead of a normal bubble, but still need a real `sender`
+    // (the claimant, for that example) since the field is required — this
+    // flag is what the client keys off of, not who `sender` happens to be.
+    isSystem: {
+      type: Boolean,
+      default: false,
+    },
   },
   {
     timestamps: true,

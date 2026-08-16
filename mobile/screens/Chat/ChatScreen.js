@@ -1,96 +1,231 @@
-import React, { useState } from "react";
-import { View, Text, ScrollView, Pressable, StyleSheet } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { useNavigation } from "@react-navigation/native";
+import React, { useCallback, useRef, useState, useMemo } from "react";
+import { View, Text, FlatList, Pressable, StyleSheet } from "react-native";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { useNavigation, useRoute } from "@react-navigation/native";
 
-import colors from "../../constants/colors";
-import images from "../../constants/images";
-import { MESSAGES } from "../../constants/chatMockData";
-import { FINDER } from "../../constants/itemDetailsMockData";
+import { useTheme } from "../../context/ThemeContext";
+import { useAuth } from "../../context/AuthContext";
+import { useMessages } from "../../hooks/useMessages";
+import { useConversationDetails } from "../../hooks/useConversationDetails";
+import { getInitials } from "../../utils/initials";
+import { CLAIM_STATUS_VARIANT, CLAIM_STATUS_LABEL } from "../../constants/claimStatus";
 
 import ArrowLeftIcon from "../../components/common/ArrowLeftIcon";
-import PhoneIcon from "../../components/common/PhoneIcon";
-import MoreVerticalIcon from "../../components/common/MoreVerticalIcon";
 import Avatar from "../../components/Avatar/Avatar";
+import CheckCircleIcon from "../../components/common/CheckCircleIcon";
+import Pill from "../../components/common/Pill";
 import ChatItemContext from "../../components/common/ChatItemContext";
+import ClaimContextCard from "../../components/common/ClaimContextCard";
 import MessageBubble from "../../components/common/MessageBubble";
 import SystemMessage from "../../components/common/SystemMessage";
-import TypingIndicator from "../../components/common/TypingIndicator";
+import StatusState from "../../components/common/StatusState";
 import ChatInputBar from "../../components/common/ChatInputBar";
-import BottomNav from "../../components/BottomNav/BottomNav";
+import ImageViewerModal from "../../components/common/ImageViewerModal";
+import KeyboardAvoidingScreen from "../../components/common/KeyboardAvoidingScreen";
 
 export default function ChatScreen() {
+  const colors = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const navigation = useNavigation();
-  const [text, setText] = useState("");
+  const route = useRoute();
+  const insets = useSafeAreaInsets();
+  const { user } = useAuth();
+  const {
+    conversationId,
+    recipientId,
+    participant: routeParticipant,
+    itemId: routeItemId,
+    itemType: routeItemType,
+    itemTitle: routeItemTitle,
+    itemImage,
+    itemStatus,
+    initialText,
+  } = route.params || {};
 
-  const handleNavigate = (route) => {
-    if (route === "Chat") return;
-    navigation.navigate(route);
+  // Authoritative once a conversationId exists — see the hook's own doc
+  // comment for why this, and not the navigation params above, is what
+  // fixes "Unknown user" for good (reopening from the inbox, or
+  // deep-linking from a notification, never carried a `participant` at
+  // all). Only a brand-new conversation (recipientId, no id yet) has
+  // nothing to fetch, so it keeps using the params above.
+  const { details } = useConversationDetails(conversationId);
+  const participant = details?.participant || routeParticipant;
+  const itemId = details?.item?.id || routeItemId;
+  const itemType = details?.item?.type || routeItemType;
+  const itemTitle = details?.item?.title || routeItemTitle;
+  const claim = details?.claim || null;
+
+  // Only ever read once, on mount — a starting point the sender can edit
+  // (e.g. "Request Info" from Claim Details), not an auto-sent message.
+  const [text, setText] = useState(initialText || "");
+  const [evidenceVisible, setEvidenceVisible] = useState(false);
+  const [sendError, setSendError] = useState(null);
+  const scrollRef = useRef(null);
+
+  const { messages, loading, sending, error, sendMessage, retryMessage, refresh } = useMessages({
+    conversationId,
+    recipientId,
+    itemId,
+    itemType,
+  });
+
+  const name = participant ? `${participant.firstName} ${participant.lastName}`.trim() : "Unknown user";
+
+  const handleSend = async () => {
+    if (!text.trim() || sending) return;
+    const pending = text;
+    setText("");
+
+    // On failure the bubble itself stays in the list (flagged `failed`) with
+    // its own tap-to-retry — the text isn't restored to the input, since
+    // that would duplicate it in both places.
+    const result = await sendMessage(pending);
+    setSendError(result.ok ? null : result.message || "Please try again.");
   };
+
+  const handleRetry = useCallback(
+    async (msg) => {
+      setSendError(null);
+      const result = await retryMessage(msg.id, msg.text);
+      if (!result.ok) setSendError(result.message || "Please try again.");
+    },
+    [retryMessage]
+  );
+
+  const renderMessage = useCallback(
+    ({ item: msg }) =>
+      msg.isSystem ? (
+        <SystemMessage text={msg.text} />
+      ) : (
+        <MessageBubble
+          text={msg.text}
+          time={msg.time}
+          isMe={msg.sender === user?.id}
+          read={msg.read}
+          avatar={participant?.avatar}
+          avatarInitials={getInitials(participant)}
+          failed={msg.failed}
+          onRetry={() => handleRetry(msg)}
+        />
+      ),
+    [user?.id, participant, handleRetry]
+  );
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
-      <View style={styles.header}>
-        <Pressable style={styles.headerIconButton} onPress={() => navigation.navigate("Notifications")}>
-          <ArrowLeftIcon size={18} color={colors.text} />
-        </Pressable>
+      <KeyboardAvoidingScreen>
+        <View style={styles.header}>
+          <Pressable
+            style={styles.headerIconButton}
+            onPress={() => navigation.goBack()}
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
+          >
+            <ArrowLeftIcon size={18} color={colors.text} />
+          </Pressable>
 
-        <Avatar size={38} initials={FINDER.initials} source={FINDER.avatar} online />
+          <Avatar size={38} initials={getInitials(participant)} source={participant?.avatar} />
 
-        <View style={styles.headerInfo}>
-          <Text style={styles.headerName}>{FINDER.name}</Text>
-          <View style={styles.statusRow}>
-            <View style={styles.onlineDot} />
-            <Text style={styles.statusText}>Online</Text>
-            <Text style={styles.statusMeta}>
-              · {FINDER.returns} returns · ⭐ {FINDER.rating}
-            </Text>
+          <View style={styles.headerInfo}>
+            <View style={styles.headerNameRow}>
+              <Text style={styles.headerName} numberOfLines={1}>
+                {name}
+              </Text>
+              {participant?.isVerified ? <CheckCircleIcon size={14} color={colors.success} /> : null}
+            </View>
+            {itemTitle ? (
+              <View style={styles.headerMetaRow}>
+                <Text style={styles.headerItemTitle} numberOfLines={1}>
+                  {itemTitle}
+                </Text>
+                {claim ? (
+                  <Pill
+                    label={CLAIM_STATUS_LABEL[claim.status]}
+                    variant={CLAIM_STATUS_VARIANT[claim.status]}
+                    style={styles.headerStatusPill}
+                  />
+                ) : null}
+              </View>
+            ) : null}
           </View>
         </View>
 
-        <Pressable style={styles.headerIconButton}>
-          <PhoneIcon size={17} color={colors.ink2} />
-        </Pressable>
-        <Pressable style={styles.headerIconButton}>
-          <MoreVerticalIcon size={17} color={colors.ink2} />
-        </Pressable>
-      </View>
+        {claim ? (
+          <ClaimContextCard
+            image={itemImage || null}
+            title={itemTitle}
+            status={claim.status}
+            submittedTime={claim.submittedTime}
+            hasEvidence={!!claim.proofImage}
+            isOwnerViewing={claim.isOwnerViewing}
+            onViewItem={itemId ? () => navigation.navigate("ItemDetails", { id: itemId }) : undefined}
+            onViewEvidence={() => setEvidenceVisible(true)}
+            style={styles.contextBar}
+          />
+        ) : itemTitle ? (
+          // From Item Details, itemImage is the item's real photo (passed
+          // directly, already loaded on that screen). From the inbox, only
+          // conversation.item's {id, title, type} exist — GET
+          // /api/chat/conversations doesn't populate an image for it — so
+          // this falls back to `null`, which SafeImage renders as its own
+          // neutral "no image" icon rather than inventing a stock photo.
+          <ChatItemContext
+            image={itemImage || null}
+            title={itemTitle}
+            status={itemStatus}
+            onPress={itemId ? () => navigation.navigate("ItemDetails", { id: itemId }) : undefined}
+            style={styles.contextBar}
+          />
+        ) : null}
 
-      <ChatItemContext
-        image={images.items.wallet}
-        title="Re: Black Leather Wallet"
-        subtitle="Found in Times Square · 4h ago"
-        style={styles.contextBar}
-      />
-
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.messages} showsVerticalScrollIndicator={false}>
-        {MESSAGES.map((msg) =>
-          msg.from === "system" ? (
-            <SystemMessage key={msg.id} text={msg.text} />
-          ) : (
-            <MessageBubble
-              key={msg.id}
-              text={msg.text}
-              time={msg.time}
-              isMe={msg.from === "me"}
-              read={msg.read}
-              avatar={FINDER.avatar}
-              avatarInitials={FINDER.initials}
-            />
-          )
+        {loading ? (
+          <StatusState loading />
+        ) : error ? (
+          <StatusState message={error} actionLabel="Retry" onAction={refresh} />
+        ) : (
+          <FlatList
+            ref={scrollRef}
+            data={messages}
+            keyExtractor={(msg) => msg.id}
+            renderItem={renderMessage}
+            style={styles.scroll}
+            contentContainerStyle={styles.messages}
+            showsVerticalScrollIndicator={false}
+            onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: true })}
+            ListEmptyComponent={<Text style={styles.emptyText}>Say hello — no messages yet.</Text>}
+            initialNumToRender={20}
+            maxToRenderPerBatch={10}
+            windowSize={10}
+            removeClippedSubviews
+          />
         )}
 
-        <TypingIndicator avatar={FINDER.avatar} avatarInitials={FINDER.initials} />
-      </ScrollView>
+        {sendError ? <Text style={styles.sendErrorText}>{sendError}</Text> : null}
+        <ChatInputBar
+          value={text}
+          onChangeText={(value) => {
+            setText(value);
+            if (sendError) setSendError(null);
+          }}
+          onSend={handleSend}
+        />
+      </KeyboardAvoidingScreen>
 
-      <ChatInputBar value={text} onChangeText={setText} />
-
-      <BottomNav active="Chat" onNavigate={handleNavigate} />
+      {claim?.proofImage ? (
+        <ImageViewerModal
+          visible={evidenceVisible}
+          images={[claim.proofImage]}
+          activeIndex={0}
+          onIndexChange={() => {}}
+          onClose={() => setEvidenceVisible(false)}
+          topInset={insets.top}
+        />
+      ) : null}
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
@@ -117,30 +252,30 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
   },
-  headerName: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: colors.text,
-  },
-  statusRow: {
+  headerNameRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
   },
-  onlineDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: colors.success,
+  headerName: {
+    flexShrink: 1,
+    fontSize: 14,
+    fontWeight: "700",
+    color: colors.text,
   },
-  statusText: {
-    fontSize: 12,
-    fontWeight: "500",
-    color: colors.success,
+  headerMetaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 2,
   },
-  statusMeta: {
+  headerItemTitle: {
+    flexShrink: 1,
     fontSize: 12,
-    color: colors.subtle,
+    color: colors.textLight,
+  },
+  headerStatusPill: {
+    flexShrink: 0,
   },
   contextBar: {
     marginHorizontal: 16,
@@ -154,5 +289,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     gap: 10,
+  },
+  emptyText: {
+    fontSize: 13,
+    color: colors.textLight,
+    textAlign: "center",
+    paddingVertical: 40,
+  },
+  sendErrorText: {
+    fontSize: 13,
+    fontWeight: "500",
+    color: colors.danger,
+    textAlign: "center",
+    paddingHorizontal: 16,
+    paddingBottom: 4,
   },
 });

@@ -1,13 +1,10 @@
-import { ITEMS } from "./homeMockData";
-
-export const MY_FOUND_ITEMS = [
-  { ...ITEMS[0], status: "claim_pending", foundDays: 0 },
-  { ...ITEMS[2], status: "returned", foundDays: 3 },
-  { ...ITEMS[4], status: "returned", foundDays: 7 },
-];
-
-export const SUMMARY_STATS = [
-  { label: "Total Found", value: "12", colorKey: "primary" },
-  { label: "Returned", value: "9", colorKey: "success" },
-  { label: "Pending", value: "3", colorKey: "secondary" },
-];
+// Labels/colors for FoundItem.status (backend enum: open, matched, claimed,
+// closed — see backend/src/models/FoundItem.js). Not the same vocabulary
+// MyFoundScreen's old mock data used ("claim_pending"/"returned"), which
+// didn't correspond to any real backend status value.
+export const STATUS_CONFIG = {
+  open: { variant: "amber", label: "Active" },
+  matched: { variant: "purple", label: "Possible Match" },
+  claimed: { variant: "primary", label: "Claim Pending" },
+  closed: { variant: "green", label: "Returned ✓" },
+};

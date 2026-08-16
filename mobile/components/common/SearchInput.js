@@ -1,11 +1,21 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { View, TextInput, Pressable, StyleSheet } from "react-native";
 
-import colors from "../../constants/colors";
+import { useTheme } from "../../context/ThemeContext";
 import SearchIcon from "./SearchIcon";
 import XIcon from "./XIcon";
 
-export default function SearchInput({ value, onChangeText, placeholder, autoFocus = false, style }) {
+export default function SearchInput({
+  value,
+  onChangeText,
+  placeholder,
+  autoFocus = false,
+  onFocus,
+  onBlur,
+  style,
+}) {
+  const colors = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
     <View style={[styles.base, style]}>
       <SearchIcon size={17} color={colors.primary} />
@@ -16,6 +26,8 @@ export default function SearchInput({ value, onChangeText, placeholder, autoFocu
         placeholder={placeholder}
         placeholderTextColor={colors.ghost}
         autoFocus={autoFocus}
+        onFocus={onFocus}
+        onBlur={onBlur}
         style={styles.input}
       />
 
@@ -28,7 +40,7 @@ export default function SearchInput({ value, onChangeText, placeholder, autoFocu
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors) => StyleSheet.create({
   base: {
     flex: 1,
     flexDirection: "row",

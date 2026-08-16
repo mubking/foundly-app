@@ -1,9 +1,11 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { View, Text, ScrollView, StyleSheet } from "react-native";
 
-import colors from "../../constants/colors";
+import { useTheme } from "../../context/ThemeContext";
 
 export default function AchievementsRow({ achievements, style }) {
+  const colors = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[styles.row, style]}>
       {achievements.map((badge) => (
@@ -18,7 +20,7 @@ export default function AchievementsRow({ achievements, style }) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors) => StyleSheet.create({
   row: {
     gap: 8,
     paddingRight: 8,

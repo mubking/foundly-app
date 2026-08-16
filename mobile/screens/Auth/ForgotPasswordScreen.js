@@ -1,9 +1,9 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useMemo } from "react";
 import { View, Text, ScrollView, Pressable, Animated, StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 
-import colors from "../../constants/colors";
+import { useTheme } from "../../context/ThemeContext";
 import Header from "../../components/Header/Header";
 import Input from "../../components/Input/Input";
 import Button from "../../components/Button/Button";
@@ -11,11 +11,18 @@ import IconBadge from "../../components/common/IconBadge";
 import LockIcon from "../../components/common/LockIcon";
 import CheckCircleIcon from "../../components/common/CheckCircleIcon";
 import MailIcon from "../../components/common/MailIcon";
+import KeyboardAvoidingScreen from "../../components/common/KeyboardAvoidingScreen";
+import { useAuth } from "../../context/AuthContext";
 
 export default function ForgotPasswordScreen() {
+  const colors = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const navigation = useNavigation();
+  const { requestPasswordReset } = useAuth();
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
+  const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   const formFade = useRef(new Animated.Value(0)).current;
   const formTranslate = useRef(new Animated.Value(10)).current;
@@ -29,8 +36,9 @@ export default function ForgotPasswordScreen() {
     ]).start();
   }, [formFade, formTranslate]);
 
-  const handleSend = () => {
-    setSent(true);
+  const isEmailValid = /^\S+@\S+\.\S+$/.test(email.trim());
+
+  const playSuccessAnimation = () => {
     successFade.setValue(0);
     successScale.setValue(0.95);
     Animated.parallel([
@@ -39,18 +47,37 @@ export default function ForgotPasswordScreen() {
     ]).start();
   };
 
+  const handleSend = async () => {
+    if (!isEmailValid || submitting) return;
+    setError("");
+    setSubmitting(true);
+    try {
+      await requestPasswordReset(email.trim().toLowerCase());
+      setSent(true);
+      playSuccessAnimation();
+    } catch (err) {
+      setError(err.message || "Something went wrong. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const backToSignIn = () => navigation.navigate("Login");
+
+  const enterCode = () =>
+    navigation.navigate("ResetPassword", { email: email.trim().toLowerCase() });
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
       <Header title="Reset Password" onBack={() => navigation.goBack()} />
 
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.content}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-      >
+      <KeyboardAvoidingScreen>
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={styles.content}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
         {!sent ? (
           <Animated.View style={{ opacity: formFade, transform: [{ translateY: formTranslate }] }}>
             <IconBadge size={64} radius={24} backgroundColor={colors.primaryTint} style={styles.badge}>
@@ -59,7 +86,7 @@ export default function ForgotPasswordScreen() {
 
             <Text style={styles.title}>Forgot your password?</Text>
             <Text style={styles.body}>
-              No worries! Enter your email and we'll send a secure reset link within seconds.
+              No worries! Enter your email and we'll send a 6-digit reset code within seconds.
             </Text>
 
             <View style={styles.form}>
@@ -70,11 +97,17 @@ export default function ForgotPasswordScreen() {
                 onChangeText={setEmail}
                 keyboardType="email-address"
                 autoCapitalize="none"
+                autoComplete="email"
+                textContentType="emailAddress"
+                returnKeyType="send"
+                onSubmitEditing={handleSend}
                 icon={<MailIcon size={17} color={colors.textLight} />}
               />
 
-              <Button fullWidth onPress={handleSend}>
-                Send Reset Link
+              {error ? <Text style={styles.errorText}>{error}</Text> : null}
+
+              <Button fullWidth onPress={handleSend} disabled={!isEmailValid || submitting}>
+                {submitting ? "Sending..." : "Send Reset Code"}
               </Button>
 
               <Button variant="surface" size="md" fullWidth onPress={backToSignIn}>
@@ -93,27 +126,28 @@ export default function ForgotPasswordScreen() {
             <View style={styles.successTextBlock}>
               <Text style={[styles.title, styles.center]}>Check your inbox</Text>
               <Text style={[styles.body, styles.center]}>
-                We sent a reset link to{"\n"}
-                <Text style={styles.emailText}>{email || "alex@example.com"}</Text>.{"\n"}
-                It expires in 15 minutes.
+                If an account exists for{"\n"}
+                <Text style={styles.emailText}>{email.trim()}</Text>,{"\n"}
+                we've sent a reset code. It expires in 15 minutes.
               </Text>
             </View>
 
-            <Button fullWidth onPress={backToSignIn} style={styles.successButton}>
-              Back to Sign In
+            <Button fullWidth onPress={enterCode} style={styles.successButton}>
+              Enter Code
             </Button>
 
-            <Pressable onPress={handleSend}>
-              <Text style={styles.resendText}>Didn't receive it? Resend</Text>
+            <Pressable onPress={handleSend} disabled={submitting}>
+              <Text style={styles.resendText}>{submitting ? "Resending..." : "Didn't receive it? Resend"}</Text>
             </Pressable>
           </Animated.View>
         )}
-      </ScrollView>
+        </ScrollView>
+      </KeyboardAvoidingScreen>
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.surface,
@@ -152,6 +186,12 @@ const styles = StyleSheet.create({
   },
   form: {
     gap: 16,
+  },
+  errorText: {
+    fontSize: 13,
+    fontWeight: "500",
+    color: colors.danger,
+    textAlign: "center",
   },
   successWrap: {
     alignItems: "center",

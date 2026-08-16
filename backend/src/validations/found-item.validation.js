@@ -29,4 +29,12 @@ export const createFoundItemSchema = z.object({
   }),
 
   dateFound: z.string(),
+
+  brand: z.string().trim().max(80).optional(),
+  color: z.string().trim().max(40).optional(),
+
+  // When possible duplicates are found, creation is held and the matches
+  // are returned for the user to review (see items/found/route.js) — set
+  // this true on a resubmit to create anyway.
+  acknowledgeDuplicates: z.boolean().default(false),
 });

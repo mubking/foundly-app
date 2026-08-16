@@ -1,72 +1,62 @@
-import React from "react";
-import { View, Text, ScrollView, StyleSheet } from "react-native";
+import React, { useMemo } from "react";
+import { View, Text, StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 
-import colors from "../../constants/colors";
-import { BALANCE_SUMMARY, TRANSACTIONS } from "../../constants/rewardHistoryMockData";
+import { useTheme } from "../../context/ThemeContext";
 
 import Header from "../../components/Header/Header";
-import BalanceCard from "../../components/common/BalanceCard";
-import TransactionRow from "../../components/common/TransactionRow";
+import IconBadge from "../../components/common/IconBadge";
+import GiftIcon from "../../components/common/GiftIcon";
 
+// There is no reward-transaction ledger on the backend — LostItem only has
+// a `reward` amount an owner offers, not a wallet/balance/history of paid
+// rewards. Rather than fabricate a balance and transaction list, this shows
+// an honest "coming soon" state until that ledger exists server-side.
 export default function RewardsScreen() {
+  const colors = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const navigation = useNavigation();
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
       <Header title="Reward History" onBack={() => navigation.goBack()} />
 
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <BalanceCard
-          totalEarned={BALANCE_SUMMARY.totalEarned}
-          subtitle={BALANCE_SUMMARY.subtitle}
-          breakdown={BALANCE_SUMMARY.breakdown}
-          style={styles.balanceCard}
-        />
-
-        <Text style={styles.sectionLabel}>Transaction History</Text>
-
-        <View style={styles.list}>
-          {TRANSACTIONS.map((txn, index) => (
-            <TransactionRow
-              key={index}
-              type={txn.type}
-              title={txn.title}
-              subtitle={`${txn.from ? `from ${txn.from}` : `for ${txn.for}`} · ${txn.date}`}
-              amount={txn.amount}
-            />
-          ))}
-        </View>
-      </ScrollView>
+      <View style={styles.content}>
+        <IconBadge size={72} radius={24} backgroundColor={colors.amberTint}>
+          <GiftIcon size={32} color={colors.secondary} />
+        </IconBadge>
+        <Text style={styles.title}>Coming soon</Text>
+        <Text style={styles.body}>
+          Reward tracking isn't available yet. Once it is, paid and earned rewards will show up here.
+        </Text>
+      </View>
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
   },
-  scroll: {
-    flex: 1,
-  },
   content: {
-    paddingHorizontal: 20,
-    paddingBottom: 24,
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 40,
+    gap: 16,
   },
-  balanceCard: {
-    marginBottom: 20,
+  title: {
+    fontSize: 18,
+    fontWeight: "800",
+    color: colors.text,
+    letterSpacing: -0.3,
   },
-  sectionLabel: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: colors.subtle,
-    letterSpacing: 0.6,
-    textTransform: "uppercase",
-    marginBottom: 12,
-  },
-  list: {
-    gap: 8,
+  body: {
+    fontSize: 14,
+    color: colors.textLight,
+    textAlign: "center",
+    lineHeight: 21,
   },
 });

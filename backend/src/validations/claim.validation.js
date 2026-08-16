@@ -3,12 +3,9 @@ import { z } from "zod";
 export const createClaimSchema = z.object({
   itemId: z.string().min(1, "itemId is required"),
   itemType: z.enum(["lost", "found"]),
-  answers: z.array(z.string().min(1, "Answer cannot be empty")).min(1, "At least one answer is required"),
-});
-
-export const verifyClaimSchema = z.object({
-  claimId: z.string().min(1, "claimId is required"),
-  action: z.enum(["approve", "reject"]),
+  message: z.string().trim().min(1, "Message is required").max(1000, "Message must be 1000 characters or fewer"),
+  reward: z.coerce.number().min(0, "Reward cannot be negative").optional(),
+  proofImage: z.string().trim().min(1).optional(),
 });
 
 // Backs PATCH /api/claims/[id]/status — claim id comes from the route

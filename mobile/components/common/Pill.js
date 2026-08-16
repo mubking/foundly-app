@@ -1,19 +1,23 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { View, Text, StyleSheet } from "react-native";
 
-import colors from "../../constants/colors";
+import { useTheme } from "../../context/ThemeContext";
 
-const VARIANTS = {
+// Depends on the active palette, so it's a factory called from inside the
+// component (see `variants` below) rather than a module-level constant.
+const getVariants = (colors) => ({
   primary: { bg: colors.primaryTint, text: colors.primary },
   green: { bg: colors.greenTint, text: "#16A34A" },
   amber: { bg: colors.amberTint, text: "#D97706" },
   red: { bg: colors.redTint, text: colors.danger },
   purple: { bg: "#EDE9FE", text: colors.purple },
   muted: { bg: colors.surface, text: colors.textLight },
-};
+});
 
 export default function Pill({ label, variant = "primary", dot = false, style }) {
-  const v = VARIANTS[variant];
+  const colors = useTheme();
+  const variants = useMemo(() => getVariants(colors), [colors]);
+  const v = variants[variant];
 
   return (
     <View style={[styles.base, { backgroundColor: v.bg }, style]}>

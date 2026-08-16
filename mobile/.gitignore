@@ -18,6 +18,11 @@ expo-env.d.ts
 *.key
 *.mobileprovision
 
+# Push notification credentials (FCM/APNs) — provisioned via `eas
+# credentials`, never committed.
+google-services.json
+GoogleService-Info.plist
+
 # Metro
 .metro-health-check*
 

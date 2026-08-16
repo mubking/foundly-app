@@ -1,14 +1,21 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { View, Text, Pressable, StyleSheet } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 
-import colors from "../../constants/colors";
-import TrendingUpIcon from "../common/TrendingUpIcon";
+import { useTheme } from "../../context/ThemeContext";
 import AlertCircleIcon from "../common/AlertCircleIcon";
 import UploadIcon from "../common/UploadIcon";
 import GlassButton from "../common/GlassButton";
 
-export default function HeroSection({ itemsReturned, trend, onReportLost, onUploadFound, style }) {
+/**
+ * `totalItems` is the live count of lost + found reports in the system
+ * (from the items search endpoint's `total`, captured in HomeScreen) — not
+ * "items returned"/a trend percentage, since the backend has no concept of
+ * a completed return and no historical trend data to report honestly.
+ */
+export default function HeroSection({ totalItems, onReportLost, onUploadFound, style }) {
+  const colors = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
     <View style={style}>
       <LinearGradient
@@ -23,13 +30,9 @@ export default function HeroSection({ itemsReturned, trend, onReportLost, onUplo
 
         <View style={styles.headerRow}>
           <View>
-            <Text style={styles.label}>Community Impact</Text>
-            <Text style={styles.value}>{itemsReturned.toLocaleString()}</Text>
-            <Text style={styles.caption}>items returned this month</Text>
-          </View>
-          <View style={styles.trendPill}>
-            <TrendingUpIcon size={13} color="rgba(255,255,255,0.9)" />
-            <Text style={styles.trendText}>{trend}</Text>
+            <Text style={styles.label}>Community Activity</Text>
+            <Text style={styles.value}>{totalItems.toLocaleString()}</Text>
+            <Text style={styles.caption}>items reported so far</Text>
           </View>
         </View>
 
@@ -52,7 +55,7 @@ export default function HeroSection({ itemsReturned, trend, onReportLost, onUplo
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors) => StyleSheet.create({
   card: {
     borderRadius: 24,
     padding: 20,
@@ -99,20 +102,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: "rgba(255,255,255,0.6)",
     marginTop: 4,
-  },
-  trendPill: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 999,
-    backgroundColor: "rgba(255,255,255,0.15)",
-  },
-  trendText: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#fff",
   },
   actionsRow: {
     flexDirection: "row",

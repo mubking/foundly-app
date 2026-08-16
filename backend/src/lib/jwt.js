@@ -29,10 +29,6 @@ export function generateToken(payload) {
  * @returns {object} Decoded payload.
  */
 export function verifyToken(token) {
-  try {
-    return jwt.verify(token, JWT_SECRET);
-  } catch (err) {
-    console.log("JWT ERROR:", err);
-    throw err;
-  }
+  return jwt.verify(token, JWT_SECRET);
 }
+

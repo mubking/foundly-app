@@ -1,9 +1,11 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { View, Text, Pressable, StyleSheet } from "react-native";
 
-import colors from "../../constants/colors";
+import { useTheme } from "../../context/ThemeContext";
 
 export default function FilterChips({ options, active, onChange, variant = "solid", equalWidth = false, style }) {
+  const colors = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const isSoft = variant === "soft";
 
   return (
@@ -35,7 +37,7 @@ export default function FilterChips({ options, active, onChange, variant = "soli
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors) => StyleSheet.create({
   row: {
     flexDirection: "row",
     gap: 8,

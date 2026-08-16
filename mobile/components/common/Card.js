@@ -1,9 +1,11 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { View, Pressable, StyleSheet } from "react-native";
 
-import colors from "../../constants/colors";
+import { useTheme } from "../../context/ThemeContext";
 
 export default function Card({ children, onPress, style }) {
+  const colors = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const Wrapper = onPress ? Pressable : View;
 
   return (
@@ -13,7 +15,7 @@ export default function Card({ children, onPress, style }) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors) => StyleSheet.create({
   base: {
     borderRadius: 16,
     backgroundColor: colors.background,

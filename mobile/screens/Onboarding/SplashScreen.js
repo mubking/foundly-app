@@ -3,7 +3,8 @@ import { View, Text, StyleSheet, Animated, Easing } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useNavigation } from "@react-navigation/native";
 
-import colors from "../../constants/colors";
+import { useTheme } from "../../context/ThemeContext";
+import { useAuth } from "../../context/AuthContext";
 import TargetIcon from "../../components/common/TargetIcon";
 import GlassIconBadge from "../../components/common/GlassIconBadge";
 import DecorativeOrbs from "../../components/common/DecorativeOrbs";
@@ -16,7 +17,9 @@ const ORBS = [
 ];
 
 export default function SplashScreen() {
+  const colors = useTheme();
   const navigation = useNavigation();
+  const { restoreSession } = useAuth();
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const translateAnim = useRef(new Animated.Value(10)).current;
 
@@ -36,12 +39,30 @@ export default function SplashScreen() {
       }),
     ]).start();
 
-    const timer = setTimeout(() => {
-      navigation.replace("Onboarding");
-    }, 2400);
+    let cancelled = false;
 
-    return () => clearTimeout(timer);
-  }, [fadeAnim, translateAnim, navigation]);
+    const bootstrap = async () => {
+      try {
+        const [restoredUser] = await Promise.all([
+          restoreSession(),
+          new Promise((resolve) => setTimeout(resolve, 2400)),
+        ]);
+
+        if (cancelled) return;
+        navigation.replace(restoredUser ? "Home" : "Onboarding");
+      } catch {
+        // restoreSession() already resolves rather than throwing, but if
+        // something upstream still does, don't strand the user on Splash.
+        if (!cancelled) navigation.replace("Onboarding");
+      }
+    };
+
+    bootstrap();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [fadeAnim, translateAnim, navigation, restoreSession]);
 
   return (
     <LinearGradient

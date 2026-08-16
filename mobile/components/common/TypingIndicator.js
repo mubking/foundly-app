@@ -1,10 +1,12 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useMemo } from "react";
 import { View, Animated, StyleSheet } from "react-native";
 
-import colors from "../../constants/colors";
+import { useTheme } from "../../context/ThemeContext";
 import Avatar from "../Avatar/Avatar";
 
 function Dot({ delay }) {
+  const colors = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const opacity = useRef(new Animated.Value(0.3)).current;
 
   useEffect(() => {
@@ -22,6 +24,8 @@ function Dot({ delay }) {
 }
 
 export default function TypingIndicator({ avatar, avatarInitials }) {
+  const colors = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
     <View style={styles.row}>
       <Avatar size={30} initials={avatarInitials} source={avatar} />
@@ -34,7 +38,7 @@ export default function TypingIndicator({ avatar, avatarInitials }) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors) => StyleSheet.create({
   row: {
     flexDirection: "row",
     gap: 10,

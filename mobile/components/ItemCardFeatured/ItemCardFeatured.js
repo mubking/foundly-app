@@ -1,18 +1,26 @@
-import React from "react";
-import { View, Text, Image, StyleSheet } from "react-native";
+import React, { useCallback, useMemo } from "react";
+import { View, Text, StyleSheet } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 
-import colors from "../../constants/colors";
+import { useTheme } from "../../context/ThemeContext";
 import Card from "../common/Card";
 import Pill from "../common/Pill";
 import MapPinIcon from "../common/MapPinIcon";
 import CheckIcon from "../common/CheckIcon";
+import SafeImage from "../common/SafeImage";
 
-export default function ItemCardFeatured({ item, onPress }) {
+function ItemCardFeatured({ item, onPress }) {
+  const colors = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  // Built here, not with an inline arrow at the call site — keeps this
+  // prop's identity stable across a parent re-render that doesn't touch
+  // `item`, so React.memo below actually skips re-rendering this card.
+  const handlePress = useCallback(() => onPress(item), [onPress, item]);
+
   return (
-    <Card onPress={onPress} style={styles.card}>
+    <Card onPress={handlePress} style={styles.card}>
       <View style={styles.imageWrap}>
-        <Image source={item.image} style={styles.image} />
+        <SafeImage source={item.image} style={styles.image} iconSize={28} />
 
         <LinearGradient
           colors={["transparent", "rgba(15,23,42,0.55)"]}
@@ -46,7 +54,9 @@ export default function ItemCardFeatured({ item, onPress }) {
   );
 }
 
-const styles = StyleSheet.create({
+export default React.memo(ItemCardFeatured);
+
+const makeStyles = (colors) => StyleSheet.create({
   card: {
     width: 200,
     overflow: "hidden",

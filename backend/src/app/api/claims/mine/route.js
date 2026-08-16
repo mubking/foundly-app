@@ -14,9 +14,12 @@ function toClaimResult(claim) {
   return {
     id: claim._id,
     status: claim.status,
-    answers: claim.answers,
+    message: claim.message,
+    reward: claim.reward ?? null,
+    proofImage: claim.proofImage ?? null,
     createdAt: claim.createdAt,
     claimant: {
+      id: claim.claimant?._id,
       firstName: claim.claimant?.firstName,
       lastName: claim.claimant?.lastName,
     },

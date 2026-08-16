@@ -1,0 +1,75 @@
+@import "tailwindcss";
+
+/* Ported from mobile/constants/colors.js so the admin dashboard reads as
+   the same product as the mobile app, not a bolted-on internal tool. */
+:root {
+  --color-primary: #2563eb;
+  --color-primary-hover: #1d4ed8;
+  --color-primary-deep: #1e3a8a;
+  --color-primary-light: #3b82f6;
+  --color-secondary: #f59e0b;
+  --color-purple: #8b5cf6;
+
+  --color-bg: #ffffff;
+  --color-surface: #f8fafc;
+  --color-surface-alt: #e9eef5;
+
+  --color-text: #111827;
+  --color-text-light: #6b7280;
+  --color-ink2: #334155;
+  --color-subtle: #94a3b8;
+  --color-ghost: #cbd5e1;
+
+  --color-success: #22c55e;
+  --color-danger: #ef4444;
+  --color-border: #e5e7eb;
+
+  --color-primary-tint: #eef2ff;
+  --color-primary-tint-dark: #dbeafe;
+  --color-green-tint: #dcfce7;
+  --color-amber-tint: #fef3c7;
+  --color-red-tint: #fee2e2;
+  --color-purple-tint: #ede9fe;
+}
+
+@theme inline {
+  --color-primary: var(--color-primary);
+  --color-primary-hover: var(--color-primary-hover);
+  --color-primary-deep: var(--color-primary-deep);
+  --color-primary-light: var(--color-primary-light);
+  --color-secondary: var(--color-secondary);
+  --color-purple: var(--color-purple);
+
+  --color-bg: var(--color-bg);
+  --color-surface: var(--color-surface);
+  --color-surface-alt: var(--color-surface-alt);
+
+  --color-text: var(--color-text);
+  --color-text-light: var(--color-text-light);
+  --color-ink2: var(--color-ink2);
+  --color-subtle: var(--color-subtle);
+  --color-ghost: var(--color-ghost);
+
+  --color-success: var(--color-success);
+  --color-danger: var(--color-danger);
+  --color-border: var(--color-border);
+
+  --color-primary-tint: var(--color-primary-tint);
+  --color-primary-tint-dark: var(--color-primary-tint-dark);
+  --color-green-tint: var(--color-green-tint);
+  --color-amber-tint: var(--color-amber-tint);
+  --color-red-tint: var(--color-red-tint);
+  --color-purple-tint: var(--color-purple-tint);
+
+  --font-sans: var(--font-inter);
+}
+
+body {
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-family: var(--font-sans), -apple-system, "Segoe UI", Arial, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}

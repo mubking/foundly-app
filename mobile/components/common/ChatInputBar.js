@@ -1,31 +1,26 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { View, TextInput, Pressable, StyleSheet } from "react-native";
 
-import colors from "../../constants/colors";
-import PaperclipIcon from "./PaperclipIcon";
-import ImageIcon from "./ImageIcon";
+import { useTheme } from "../../context/ThemeContext";
 import SendIcon from "./SendIcon";
 
 export default function ChatInputBar({ value, onChangeText, onSend, style }) {
+  const colors = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const hasText = value.trim().length > 0;
 
   return (
     <View style={[styles.bar, style]}>
-      <Pressable style={styles.iconButton}>
-        <PaperclipIcon size={18} color={colors.textLight} />
-      </Pressable>
-
       <View style={styles.field}>
         <TextInput
           value={value}
           onChangeText={onChangeText}
           placeholder="Type a message…"
           placeholderTextColor={colors.ghost}
+          returnKeyType="send"
+          onSubmitEditing={hasText ? onSend : undefined}
           style={styles.input}
         />
-        <Pressable hitSlop={8}>
-          <ImageIcon size={18} color={colors.subtle} />
-        </Pressable>
       </View>
 
       <Pressable
@@ -39,7 +34,7 @@ export default function ChatInputBar({ value, onChangeText, onSend, style }) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors) => StyleSheet.create({
   bar: {
     flexDirection: "row",
     alignItems: "center",
@@ -49,15 +44,7 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
     borderTopWidth: 1,
     borderTopColor: colors.border,
-    backgroundColor: "rgba(255,255,255,0.95)",
-  },
-  iconButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 16,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: colors.surface,
+    backgroundColor: colors.background,
   },
   field: {
     flex: 1,

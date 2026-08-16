@@ -1,22 +1,22 @@
-import React, { useState } from "react";
-import { View, Text, ScrollView, StyleSheet } from "react-native";
+import React, { useState, useMemo, useRef } from "react";
+import { View, Text, ScrollView, ActivityIndicator, StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 
-import colors from "../../constants/colors";
-import { PROFILE_USER } from "../../constants/profileMockData";
+import { useTheme, useThemePreference } from "../../context/ThemeContext";
+import { useProfile } from "../../hooks/useProfile";
+import { useLogout } from "../../hooks/useLogout";
+import { getInitials } from "../../utils/initials";
 
 import Header from "../../components/Header/Header";
 import Card from "../../components/common/Card";
 import Avatar from "../../components/Avatar/Avatar";
-import Pill from "../../components/common/Pill";
 import SettingsSection from "../../components/common/SettingsSection";
 import SettingsRow from "../../components/common/SettingsRow";
 import Toggle from "../../components/common/Toggle";
 import MoonIcon from "../../components/common/MoonIcon";
 import SunIcon from "../../components/common/SunIcon";
 import GlobeIcon from "../../components/common/GlobeIcon";
-import BellIcon from "../../components/common/BellIcon";
 import MailIcon from "../../components/common/MailIcon";
 import ZapIcon from "../../components/common/ZapIcon";
 import MapPinIcon from "../../components/common/MapPinIcon";
@@ -32,35 +32,84 @@ import LogOutIcon from "../../components/common/LogOutIcon";
 import Trash2Icon from "../../components/common/Trash2Icon";
 
 export default function SettingsScreen() {
+  const colors = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  const { mode, preference, setThemePreference } = useThemePreference();
   const navigation = useNavigation();
-  const [dark, setDark] = useState(false);
-  const [push, setPush] = useState(true);
-  const [email, setEmail] = useState(true);
+  const { profile, loading, error, updateProfile, refresh } = useProfile();
+  const handleSignOut = useLogout();
+
+  // Dark Mode persists via ThemeContext (AsyncStorage, see context/ThemeContext.js)
+  // and Email Notifications persists via the real User.emailNotifications
+  // backend field (PATCH /api/users/profile — see services/users.js). The
+  // rest below still have no backend model/route for them, so they stay
+  // local UI state, disabled, same as before.
+  const [emailSaving, setEmailSaving] = useState(false);
+  const [emailError, setEmailError] = useState("");
   const [location, setLocation] = useState(true);
   const [matching, setMatching] = useState(true);
   const [twofa, setTwofa] = useState(false);
+
+  const emailSavingRef = useRef(false);
+  const handleEmailToggle = async (next) => {
+    if (emailSavingRef.current) return;
+    emailSavingRef.current = true;
+    setEmailError("");
+    setEmailSaving(true);
+    const result = await updateProfile({ emailNotifications: next });
+    emailSavingRef.current = false;
+    setEmailSaving(false);
+    if (!result.ok) setEmailError(result.message);
+  };
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
       <Header title="Settings" onBack={() => navigation.goBack()} />
 
       <Card style={styles.profileCard}>
-        <Avatar size={48} initials={PROFILE_USER.initials} source={PROFILE_USER.avatar} />
-        <View style={styles.profileTextWrap}>
-          <Text style={styles.profileName}>{PROFILE_USER.name}</Text>
-          <Text style={styles.profileEmail}>alex@example.com</Text>
-        </View>
-        <Pill label="Pro" variant="primary" />
+        {loading ? (
+          <ActivityIndicator color={colors.primary} />
+        ) : profile ? (
+          <>
+            <Avatar size={48} initials={getInitials(profile)} source={profile.avatar} />
+            <View style={styles.profileTextWrap}>
+              <Text style={styles.profileName}>
+                {profile.firstName} {profile.lastName}
+              </Text>
+              <Text style={styles.profileEmail}>{profile.email}</Text>
+            </View>
+          </>
+        ) : (
+          <View style={styles.profileTextWrap}>
+            <Text style={styles.profileError}>{error || "Couldn't load your profile."}</Text>
+            <Text style={styles.retryLink} onPress={refresh}>
+              Retry
+            </Text>
+          </View>
+        )}
       </Card>
 
       <ScrollView style={styles.scroll} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <SettingsSection title="Appearance">
           <SettingsRow
-            icon={dark ? <MoonIcon size={18} color={colors.textLight} /> : <SunIcon size={18} color={colors.textLight} />}
+            icon={mode === "dark" ? <MoonIcon size={18} color={colors.textLight} /> : <SunIcon size={18} color={colors.textLight} />}
             label="Dark Mode"
-            subtitle="Switch between light and dark"
-            right={<Toggle on={dark} onChange={setDark} />}
+            subtitle={preference === "system" ? "Matches your device" : undefined}
+            right={
+              <Toggle
+                on={mode === "dark"}
+                onChange={(next) => setThemePreference(next ? "dark" : "light")}
+                accessibilityLabel="Dark Mode"
+              />
+            }
           />
+          {preference !== "system" ? (
+            <SettingsRow
+              icon={<SunIcon size={18} color={colors.textLight} />}
+              label="Use Device Setting"
+              onPress={() => setThemePreference("system")}
+            />
+          ) : null}
           <SettingsRow
             icon={<GlobeIcon size={18} color={colors.textLight} />}
             label="Language"
@@ -72,22 +121,23 @@ export default function SettingsScreen() {
 
         <SettingsSection title="Notifications">
           <SettingsRow
-            icon={<BellIcon size={18} color={colors.textLight} />}
-            label="Push Notifications"
-            subtitle="Item matches, claims, messages"
-            right={<Toggle on={push} onChange={setPush} />}
-          />
-          <SettingsRow
             icon={<MailIcon size={18} color={colors.textLight} />}
             label="Email Notifications"
-            subtitle="Weekly summary and alerts"
-            right={<Toggle on={email} onChange={setEmail} />}
+            subtitle={emailError || undefined}
+            right={
+              <Toggle
+                on={!!profile?.emailNotifications}
+                onChange={handleEmailToggle}
+                disabled={emailSaving || !profile}
+                accessibilityLabel="Email Notifications"
+              />
+            }
           />
           <SettingsRow
             icon={<ZapIcon size={18} color={colors.textLight} />}
             label="Instant Matching Alerts"
-            subtitle="Notify when we find a match"
-            right={<Toggle on={matching} onChange={setMatching} />}
+            subtitle="Coming soon"
+            right={<Toggle on={matching} onChange={setMatching} disabled accessibilityLabel="Instant Matching Alerts" />}
             last
           />
         </SettingsSection>
@@ -96,37 +146,58 @@ export default function SettingsScreen() {
           <SettingsRow
             icon={<MapPinIcon size={18} color={colors.textLight} />}
             label="Location Sharing"
-            subtitle="Used to find nearby items"
-            right={<Toggle on={location} onChange={setLocation} />}
+            subtitle="Coming soon"
+            right={<Toggle on={location} onChange={setLocation} disabled accessibilityLabel="Location Sharing" />}
           />
           <SettingsRow
             icon={<ShieldIcon size={18} color={colors.textLight} />}
             label="Two-Factor Authentication"
-            subtitle={twofa ? "Enabled" : "Not enabled"}
-            right={<Toggle on={twofa} onChange={setTwofa} />}
+            subtitle="Coming soon"
+            right={<Toggle on={twofa} onChange={setTwofa} disabled accessibilityLabel="Two-Factor Authentication" />}
           />
           <SettingsRow
             icon={<EyeIcon size={18} color={colors.textLight} />}
             label="Profile Visibility"
             subtitle="Public to verified users"
+            right={null}
           />
-          <SettingsRow icon={<FileTextIcon size={18} color={colors.textLight} />} label="Data & Privacy" last />
+          <SettingsRow
+            icon={<FileTextIcon size={18} color={colors.textLight} />}
+            label="Data & Privacy"
+            subtitle="Coming soon"
+            right={null}
+            last
+          />
         </SettingsSection>
 
         <SettingsSection title="Account">
-          <SettingsRow icon={<Edit3Icon size={18} color={colors.textLight} />} label="Edit Profile" />
-          <SettingsRow icon={<KeyIcon size={18} color={colors.textLight} />} label="Change Password" />
+          <SettingsRow
+            icon={<Edit3Icon size={18} color={colors.textLight} />}
+            label="Edit Profile"
+            onPress={() => navigation.navigate("EditProfile")}
+          />
+          <SettingsRow
+            icon={<KeyIcon size={18} color={colors.textLight} />}
+            label="Change Password"
+            onPress={() => navigation.navigate("ChangePassword")}
+          />
           <SettingsRow
             icon={<AwardIcon size={18} color={colors.textLight} />}
             label="Upgrade to Pro"
             subtitle="Unlock advanced features"
-            right={<Pill label="New" variant="amber" />}
+            right={null}
           />
-          <SettingsRow icon={<HelpCircleIcon size={18} color={colors.textLight} />} label="Help & Support" />
+          <SettingsRow
+            icon={<HelpCircleIcon size={18} color={colors.textLight} />}
+            label="Help & Support"
+            subtitle="Coming soon"
+            right={null}
+          />
           <SettingsRow
             icon={<InfoIcon size={18} color={colors.textLight} />}
             label="About Foundly"
             subtitle="Version 2.4.1"
+            right={null}
             last
           />
         </SettingsSection>
@@ -137,12 +208,12 @@ export default function SettingsScreen() {
             label="Sign Out"
             danger
             right={null}
-            onPress={() => navigation.navigate("Login")}
+            onPress={handleSignOut}
           />
           <SettingsRow
             icon={<Trash2Icon size={18} color={colors.danger} />}
             label="Delete Account"
-            subtitle="Permanently remove all data"
+            subtitle="Coming soon"
             danger
             right={null}
             last
@@ -153,7 +224,7 @@ export default function SettingsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
@@ -165,6 +236,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 20,
     marginBottom: 20,
     padding: 16,
+    minHeight: 48,
   },
   profileTextWrap: {
     flex: 1,
@@ -178,6 +250,17 @@ const styles = StyleSheet.create({
   profileEmail: {
     fontSize: 12,
     color: colors.textLight,
+  },
+  profileError: {
+    fontSize: 12,
+    fontWeight: "500",
+    color: colors.danger,
+  },
+  retryLink: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: colors.primary,
+    marginTop: 2,
   },
   scroll: {
     flex: 1,

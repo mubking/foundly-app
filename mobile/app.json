@@ -3,6 +3,7 @@
     "name": "mobile",
     "slug": "mobile",
     "version": "1.0.0",
+    "scheme": "foundly",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -13,20 +14,39 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.foundly.app",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Foundly uses your camera so you can photograph lost or found items and verify claims.",
+        "NSPhotoLibraryUsageDescription": "Foundly needs access to your photos so you can attach images to lost and found reports and claims.",
+        "NSLocationWhenInUseUsageDescription": "Foundly uses your location to show lost and found items near you."
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "package": "com.foundly.app"
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-font"
-    ]
+      "expo-font",
+      [
+        "expo-notifications",
+        {
+          "color": "#2563EB"
+        }
+      ],
+      "expo-secure-store",
+      "@react-native-community/datetimepicker"
+    ],
+    "extra": {
+      "eas": {
+"projectId": "ac71f9f9-2597-4dc4-ba20-408fc2b3800a"      }
+    }
   }
 }

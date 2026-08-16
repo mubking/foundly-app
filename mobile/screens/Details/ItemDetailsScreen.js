@@ -1,255 +1,206 @@
-import React, { useState } from "react";
-import { View, Text, Image, ScrollView, Pressable, StyleSheet } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useNavigation } from "@react-navigation/native";
-import { LinearGradient } from "expo-linear-gradient";
+import React, { useState, useMemo } from "react";
+import { View, ScrollView, StyleSheet } from "react-native";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { useNavigation, useRoute } from "@react-navigation/native";
 
-import colors from "../../constants/colors";
-import { ITEMS } from "../../constants/homeMockData";
-import { FINDER, STATUS_TIMELINE, ITEM_DESCRIPTION } from "../../constants/itemDetailsMockData";
+import { useTheme } from "../../context/ThemeContext";
+import { ITEM_CATEGORIES } from "../../constants/itemCategories";
+import { useAuth } from "../../context/AuthContext";
+import { useItemDetails } from "../../hooks/useItemDetails";
+import { useItemDetailsActions } from "../../hooks/useItemDetailsActions";
 
-import Pill from "../../components/common/Pill";
-import ProgressDots from "../../components/common/ProgressDots";
-import HeroIconButton from "../../components/common/HeroIconButton";
-import ArrowLeftIcon from "../../components/common/ArrowLeftIcon";
-import HeartIcon from "../../components/common/HeartIcon";
-import Share2Icon from "../../components/common/Share2Icon";
-import MoreVerticalIcon from "../../components/common/MoreVerticalIcon";
-import MapPinIcon from "../../components/common/MapPinIcon";
-import ClockIcon from "../../components/common/ClockIcon";
-import FlagIcon from "../../components/common/FlagIcon";
-import PhoneIcon from "../../components/common/PhoneIcon";
-import ShieldIcon from "../../components/common/ShieldIcon";
-import FinderCard from "../../components/common/FinderCard";
-import StatusTimeline from "../../components/common/StatusTimeline";
-import Button from "../../components/Button/Button";
+import Header from "../../components/Header/Header";
+import StatusState from "../../components/common/StatusState";
+import ItemDetailsHero from "../../components/common/ItemDetailsHero";
+import ItemImageThumbnails from "../../components/common/ItemImageThumbnails";
+import ItemDetailsBody from "../../components/common/ItemDetailsBody";
+import ItemDetailsCta from "../../components/common/ItemDetailsCta";
+import ImageViewerModal from "../../components/common/ImageViewerModal";
+import ItemMenuSheet from "../../components/common/ItemMenuSheet";
+import ReportReasonSheet from "../../components/common/ReportReasonSheet";
 
-const item = ITEMS[0];
+const HERO_HEIGHT = 320;
 
 export default function ItemDetailsScreen() {
+  const colors = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const navigation = useNavigation();
+  const route = useRoute();
   const insets = useSafeAreaInsets();
+  const { user, isAuthenticated } = useAuth();
   const [saved, setSaved] = useState(false);
+
+  const { item, status, errorMessage, reload } = useItemDetails(route.params?.id);
+
+  if (status !== "success") {
+    return (
+      <SafeAreaView style={styles.screen} edges={["top"]}>
+        <Header title="Item Details" onBack={() => navigation.goBack()} />
+        {status === "loading" ? (
+          <StatusState loading />
+        ) : status === "empty" ? (
+          <StatusState message={errorMessage} actionLabel="Go Back" onAction={() => navigation.goBack()} />
+        ) : (
+          <StatusState message={errorMessage} actionLabel="Retry" onAction={reload} />
+        )}
+      </SafeAreaView>
+    );
+  }
+
+  return (
+    <ItemDetailsContent
+      item={item}
+      navigation={navigation}
+      insets={insets}
+      user={user}
+      isAuthenticated={isAuthenticated}
+      saved={saved}
+      setSaved={setSaved}
+      reload={reload}
+      claimant={route.params?.claimant}
+    />
+  );
+}
+
+/**
+ * Split out from ItemDetailsScreen so {@link useItemDetailsActions} (which
+ * needs the loaded `item`) can be called unconditionally — hooks can't run
+ * conditionally after the loading/error early-return above.
+ */
+function ItemDetailsContent({ item, navigation, insets, user, isAuthenticated, saved, setSaved, reload, claimant }) {
+  const colors = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  const actions = useItemDetailsActions(item);
+
+  const isOwner = isAuthenticated && item.owner.id === user?.id;
+  const categoryMeta = ITEM_CATEGORIES.find((c) => c.label === item.category);
+  const posterLabel = item.type === "lost" ? "Reported by" : "Found by";
+
+  // The Message button always targets the *other* participant, never the
+  // signed-in user: an owner viewing their own item (e.g. from "Claims on
+  // My Items") messages the claimant who filed against it; anyone else
+  // messages the item's owner, same as before. When the owner arrives here
+  // without claimant context (browsing their own listing directly), there's
+  // no one to message, so `otherParty` is null and the button hides below.
+  const otherParty = isOwner ? claimant : item.owner;
+
+  const handleClaimPress = () => {
+    if (!isAuthenticated) {
+      navigation.navigate("Login");
+      return;
+    }
+    navigation.navigate("ClaimVerification", {
+      itemId: item.id,
+      itemType: item.type,
+      itemTitle: item.title,
+    });
+  };
+
+  // GET /api/items/:id only populates the owner's firstName/lastName (see
+  // services/items.js's toItemDetail) — no avatar — so `participant.avatar`
+  // is `null` here and the chat thread falls back to initials, same as
+  // everywhere else an avatar is missing.
+  const handleMessagePress = () => {
+    if (!isAuthenticated) {
+      navigation.navigate("Login");
+      return;
+    }
+    if (!otherParty) return;
+
+    navigation.navigate("ChatThread", {
+      recipientId: otherParty.id,
+      participant: { id: otherParty.id, firstName: otherParty.firstName, lastName: otherParty.lastName, avatar: null },
+      itemId: item.id,
+      itemType: item.type,
+      itemTitle: item.title,
+      itemImage: item.images[0],
+      itemStatus: item.status,
+    });
+  };
 
   return (
     <View style={styles.screen}>
       <ScrollView showsVerticalScrollIndicator={false}>
-        <View style={styles.hero}>
-          <Image source={item.image} style={StyleSheet.absoluteFill} />
+        <ItemDetailsHero
+          item={item}
+          height={HERO_HEIGHT}
+          activeImageIndex={actions.activeImageIndex}
+          onIndexChange={actions.setActiveImageIndex}
+          onImagePress={actions.handleImagePress}
+          saved={saved}
+          onToggleSaved={() => setSaved((v) => !v)}
+          onSharePress={actions.handleSharePress}
+          onMenuPress={() => actions.setMenuVisible(true)}
+          onBack={() => navigation.goBack()}
+          topInset={insets.top}
+          categoryEmoji={categoryMeta?.emoji}
+        />
 
-          <LinearGradient
-            colors={["rgba(15,23,42,0.75)", "rgba(15,23,42,0.1)", "transparent"]}
-            locations={[0, 0.55, 1]}
-            start={{ x: 0, y: 1 }}
-            end={{ x: 0, y: 0 }}
-            style={StyleSheet.absoluteFill}
-          />
+        <ItemImageThumbnails
+          images={item.images}
+          activeIndex={actions.activeImageIndex}
+          onSelect={actions.setActiveImageIndex}
+          style={styles.thumbnails}
+        />
 
-          <View style={[styles.heroActions, { paddingTop: insets.top + 12 }]}>
-            <HeroIconButton onPress={() => navigation.goBack()}>
-              <ArrowLeftIcon size={20} color="#fff" />
-            </HeroIconButton>
-
-            <View style={styles.heroActionsRight}>
-              <HeroIconButton onPress={() => setSaved((v) => !v)}>
-                <HeartIcon size={19} color={saved ? "#F87171" : "#fff"} fill={saved ? "#F87171" : "none"} />
-              </HeroIconButton>
-              <HeroIconButton>
-                <Share2Icon size={19} color="#fff" />
-              </HeroIconButton>
-              <HeroIconButton>
-                <MoreVerticalIcon size={19} color="#fff" />
-              </HeroIconButton>
-            </View>
-          </View>
-
-          <View style={styles.heroContent}>
-            <View style={styles.pillRow}>
-              <Pill label="FOUND" variant="green" dot />
-              <Pill label="Verified" variant="primary" />
-            </View>
-            <Text style={styles.title}>{item.title}</Text>
-            <ProgressDots
-              count={3}
-              activeIndex={0}
-              dotHeight={6}
-              activeWidth={20}
-              inactiveWidth={6}
-              gap={6}
-              inactiveColor="rgba(255,255,255,0.4)"
-              style={styles.galleryDots}
-            />
-          </View>
-        </View>
-
-        <View style={styles.content}>
-          <View style={styles.metaRow}>
-            <View style={[styles.metaItem, styles.metaItemGrow]}>
-              <MapPinIcon size={15} color={colors.danger} />
-              <Text style={styles.metaLocation}>{item.location}</Text>
-            </View>
-            <View style={styles.metaDivider} />
-            <View style={styles.metaItem}>
-              <ClockIcon size={15} color={colors.subtle} />
-              <Text style={styles.metaTime}>{item.time}</Text>
-            </View>
-          </View>
-
-          <FinderCard finder={FINDER} />
-
-          <StatusTimeline steps={STATUS_TIMELINE} />
-
-          <View>
-            <Text style={styles.sectionLabel}>Description</Text>
-            <Text style={styles.description}>{ITEM_DESCRIPTION}</Text>
-          </View>
-
-          <Pressable style={styles.reportLink}>
-            <FlagIcon size={15} color={colors.subtle} />
-            <Text style={styles.reportText}>Report this listing as incorrect</Text>
-          </Pressable>
-        </View>
+        <ItemDetailsBody
+          item={item}
+          posterLabel={posterLabel}
+          isOwner={isOwner}
+          onMessage={otherParty ? handleMessagePress : undefined}
+          onReportPress={actions.openReportSheet}
+        />
       </ScrollView>
 
-      <View style={[styles.stickyCta, { paddingBottom: insets.bottom + 16 }]}>
-        <Pressable style={styles.callButton} onPress={() => navigation.navigate("Chat")}>
-          <PhoneIcon size={19} color={colors.ink2} />
-        </Pressable>
+      {!isOwner ? (
+        <ItemDetailsCta
+          isClaimable={actions.isClaimable}
+          claimLabel={actions.claimLabel}
+          onCallPress={handleMessagePress}
+          onClaimPress={handleClaimPress}
+          bottomInset={insets.bottom}
+        />
+      ) : null}
 
-        <Button
-          size="md"
-          fullWidth
-          icon={<ShieldIcon size={18} color="#fff" />}
-          onPress={() => navigation.navigate("ClaimVerification")}
-          style={styles.claimButton}
-        >
-          Claim This Item
-        </Button>
-      </View>
+      <ImageViewerModal
+        visible={actions.viewerVisible}
+        images={item.images}
+        activeIndex={actions.activeImageIndex}
+        onIndexChange={actions.setActiveImageIndex}
+        onClose={() => actions.setViewerVisible(false)}
+        topInset={insets.top}
+      />
+
+      <ItemMenuSheet
+        visible={actions.menuVisible}
+        onClose={() => actions.setMenuVisible(false)}
+        isOwner={isOwner}
+        onCopyLink={actions.handleCopyLink}
+        onReport={actions.openReportSheet}
+        onEdit={() => {
+          actions.setMenuVisible(false);
+          navigation.navigate("EditListing", { id: item.id, type: item.type, onSaved: reload });
+        }}
+        onDelete={() => actions.handleDeletePress(() => navigation.goBack())}
+        deleting={actions.deleting}
+      />
+
+      <ReportReasonSheet
+        visible={actions.reportSheetVisible}
+        onClose={() => actions.setReportSheetVisible(false)}
+        onSelectReason={actions.handleSelectReportReason}
+        submitting={actions.reporting}
+      />
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors) => StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: colors.background,
   },
-  hero: {
-    height: 320,
-    backgroundColor: colors.surface,
-  },
-  heroActions: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    justifyContent: "space-between",
-    paddingHorizontal: 20,
-  },
-  heroActionsRight: {
-    flexDirection: "row",
-    gap: 8,
-  },
-  heroContent: {
-    position: "absolute",
-    left: 20,
-    right: 20,
-    bottom: 20,
-  },
-  pillRow: {
-    flexDirection: "row",
-    gap: 8,
-    marginBottom: 8,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: "900",
-    color: "#fff",
-    letterSpacing: -0.5,
-    lineHeight: 26,
-  },
-  galleryDots: {
-    marginTop: 12,
-  },
-  content: {
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 16,
-    gap: 20,
-  },
-  metaRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 16,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 16,
-    backgroundColor: colors.surface,
-  },
-  metaItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  metaItemGrow: {
-    flex: 1,
-  },
-  metaLocation: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: colors.ink2,
-  },
-  metaDivider: {
-    width: 1,
-    height: 16,
-    backgroundColor: colors.border,
-  },
-  metaTime: {
-    fontSize: 14,
-    color: colors.textLight,
-  },
-  sectionLabel: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: colors.subtle,
-    letterSpacing: 0.6,
-    textTransform: "uppercase",
-    marginBottom: 8,
-  },
-  description: {
-    fontSize: 14,
-    color: colors.ink2,
-    lineHeight: 24,
-  },
-  reportLink: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  reportText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: colors.subtle,
-  },
-  stickyCta: {
-    flexDirection: "row",
-    gap: 12,
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    backgroundColor: "rgba(255,255,255,0.95)",
-  },
-  callButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 16,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: colors.surface,
-    borderWidth: 1.5,
-    borderColor: colors.border,
-  },
-  claimButton: {
-    flex: 1,
+  thumbnails: {
+    paddingVertical: 16,
   },
 });

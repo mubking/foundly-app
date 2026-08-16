@@ -4,11 +4,21 @@ import { connectDB } from "@/lib/db";
 import User from "@/models/User";
 import { registerSchema } from "@/validations/auth.validation";
 import { success, error } from "@/lib/response";
+import { toPublicUser } from "@/lib/serializers";
+import { rateLimitOrError } from "@/lib/rateLimit";
+import { getRequestIp } from "@/lib/requestIp";
 
 const SALT_ROUNDS = 12;
 
 export async function POST(request) {
   try {
+    const limited = await rateLimitOrError({
+      key: `register:ip:${getRequestIp(request)}`,
+      limit: 5,
+      windowSeconds: 60 * 60,
+    });
+    if (limited) return limited;
+
     await connectDB();
 
     let body;
@@ -46,18 +56,7 @@ export async function POST(request) {
       phone,
     });
 
-    return success(
-      {
-        id: user._id,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        email: user.email,
-        role: user.role,
-        isVerified: user.isVerified,
-      },
-      "Account created successfully",
-      201
-    );
+    return success(toPublicUser(user), "Account created successfully", 201);
   } catch (err) {
     console.error("Register error:", err);
     return error("Something went wrong while creating your account", 500);

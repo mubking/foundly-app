@@ -1,11 +1,12 @@
-import React from "react";
-import { View, Text, Image, StyleSheet } from "react-native";
+import React, { useMemo } from "react";
+import { View, Text, StyleSheet } from "react-native";
 
-import colors from "../../constants/colors";
+import { useTheme } from "../../context/ThemeContext";
 import Card from "./Card";
 import Pill from "./Pill";
 import MapPinIcon from "./MapPinIcon";
 import ChevronRightIcon from "./ChevronRightIcon";
+import SafeImage from "./SafeImage";
 
 export default function StatusItemRow({
   image,
@@ -17,9 +18,12 @@ export default function StatusItemRow({
   timeLabel,
   onPress,
 }) {
+  const colors = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+
   return (
     <Card onPress={onPress} style={styles.card}>
-      <Image source={image} style={styles.image} />
+      <SafeImage source={image} style={styles.image} />
 
       <View style={styles.content}>
         <View style={styles.badgeRow}>
@@ -47,7 +51,7 @@ export default function StatusItemRow({
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors) => StyleSheet.create({
   card: {
     flexDirection: "row",
     overflow: "hidden",

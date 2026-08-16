@@ -1,9 +1,11 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useMemo } from "react";
 import { Pressable, Animated, StyleSheet } from "react-native";
 
-import colors from "../../constants/colors";
+import { useTheme } from "../../context/ThemeContext";
 
-export default function Toggle({ on, onChange }) {
+export default function Toggle({ on, onChange, disabled = false, accessibilityLabel }) {
+  const colors = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const translate = useRef(new Animated.Value(on ? 1 : 0)).current;
 
   useEffect(() => {
@@ -13,13 +15,20 @@ export default function Toggle({ on, onChange }) {
   const translateX = translate.interpolate({ inputRange: [0, 1], outputRange: [0, 21] });
 
   return (
-    <Pressable onPress={() => onChange(!on)} style={[styles.track, on && styles.trackOn]}>
+    <Pressable
+      onPress={() => onChange(!on)}
+      disabled={disabled}
+      style={[styles.track, on && styles.trackOn, disabled && styles.trackDisabled]}
+      accessibilityRole="switch"
+      accessibilityLabel={accessibilityLabel}
+      accessibilityState={{ checked: on, disabled }}
+    >
       <Animated.View style={[styles.thumb, { transform: [{ translateX }] }]} />
     </Pressable>
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors) => StyleSheet.create({
   track: {
     width: 51,
     height: 30,
@@ -33,6 +42,9 @@ const styles = StyleSheet.create({
   trackOn: {
     backgroundColor: colors.primary,
     borderColor: colors.primaryHover,
+  },
+  trackDisabled: {
+    opacity: 0.5,
   },
   thumb: {
     width: 22,

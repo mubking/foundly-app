@@ -2,9 +2,14 @@ import React from "react";
 import { Pressable, StyleSheet } from "react-native";
 import { BlurView } from "expo-blur";
 
-export default function HeroIconButton({ children, onPress, style }) {
+export default function HeroIconButton({ children, onPress, style, accessibilityLabel }) {
   return (
-    <Pressable onPress={onPress} style={[styles.base, style]}>
+    <Pressable
+      onPress={onPress}
+      style={[styles.base, style]}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
+    >
       <BlurView intensity={40} tint="dark" style={StyleSheet.absoluteFill} />
       {children}
     </Pressable>

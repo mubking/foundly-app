@@ -1,9 +1,15 @@
-import React from "react";
-import { View, Text, Image, StyleSheet } from "react-native";
+import React, { useState, useMemo } from "react";
+import { View, Text, StyleSheet } from "react-native";
+import { Image } from "expo-image";
 
-import colors from "../../constants/colors";
+import { useTheme } from "../../context/ThemeContext";
 
 export default function Avatar({ size = 40, source, initials, ring = false, online = false }) {
+  const colors = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  const [failed, setFailed] = useState(false);
+  const showImage = source && !failed;
+
   return (
     <View style={{ width: size, height: size }}>
       <View
@@ -13,16 +19,22 @@ export default function Avatar({ size = 40, source, initials, ring = false, onli
             width: size,
             height: size,
             borderRadius: size / 2,
-            backgroundColor: source ? "transparent" : colors.primary,
+            backgroundColor: colors.primary,
           },
           ring && styles.ring,
         ]}
       >
-        {source ? (
-          <Image source={source} style={{ width: size, height: size, borderRadius: size / 2 }} />
-        ) : (
-          <Text style={[styles.initials, { fontSize: size * 0.36 }]}>{initials}</Text>
-        )}
+        <Text style={[styles.initials, { fontSize: size * 0.36 }]}>{initials}</Text>
+
+        {showImage ? (
+          <Image
+            source={source}
+            style={[StyleSheet.absoluteFill, { borderRadius: size / 2 }]}
+            transition={150}
+            cachePolicy="memory-disk"
+            onError={() => setFailed(true)}
+          />
+        ) : null}
       </View>
 
       {online ? (
@@ -41,7 +53,7 @@ export default function Avatar({ size = 40, source, initials, ring = false, onli
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors) => StyleSheet.create({
   circle: {
     alignItems: "center",
     justifyContent: "center",

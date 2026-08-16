@@ -1,11 +1,11 @@
-import React, { useState } from "react";
+import React, { forwardRef, useMemo, useState } from "react";
 import { View, Text, TextInput, Pressable, StyleSheet } from "react-native";
 
-import colors from "../../constants/colors";
+import { useTheme } from "../../context/ThemeContext";
 import EyeIcon from "../common/EyeIcon";
 import EyeOffIcon from "../common/EyeOffIcon";
 
-export default function Input({
+const Input = forwardRef(function Input({
   label,
   placeholder,
   value,
@@ -18,7 +18,15 @@ export default function Input({
   hint,
   error,
   style,
-}) {
+  returnKeyType = "default",
+  onSubmitEditing,
+  submitBehavior,
+  autoComplete,
+  textContentType,
+  editable = true,
+}, ref) {
+  const colors = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const [focused, setFocused] = useState(false);
   const [show, setShow] = useState(false);
 
@@ -32,11 +40,13 @@ export default function Input({
           multiline && styles.fieldMultiline,
           focused && styles.fieldFocused,
           !!error && styles.fieldError,
+          !editable && styles.fieldDisabled,
         ]}
       >
         {icon ? <View style={styles.icon}>{icon}</View> : null}
 
         <TextInput
+          ref={ref}
           value={value}
           onChangeText={onChangeText}
           placeholder={placeholder}
@@ -49,11 +59,22 @@ export default function Input({
           textAlignVertical={multiline ? "top" : "center"}
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
-          style={styles.input}
+          returnKeyType={returnKeyType}
+          onSubmitEditing={onSubmitEditing}
+          submitBehavior={submitBehavior}
+          autoComplete={autoComplete}
+          textContentType={textContentType}
+          editable={editable}
+          style={[styles.input, !editable && styles.inputDisabled]}
         />
 
         {secureTextEntry ? (
-          <Pressable onPress={() => setShow((s) => !s)} hitSlop={8}>
+          <Pressable
+            onPress={() => setShow((s) => !s)}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel={show ? "Hide password" : "Show password"}
+          >
             {show ? <EyeOffIcon size={18} color={colors.subtle} /> : <EyeIcon size={18} color={colors.subtle} />}
           </Pressable>
         ) : null}
@@ -66,9 +87,11 @@ export default function Input({
       ) : null}
     </View>
   );
-}
+});
 
-const styles = StyleSheet.create({
+export default Input;
+
+const makeStyles = (colors) => StyleSheet.create({
   wrapper: {
     gap: 6,
   },
@@ -102,6 +125,10 @@ const styles = StyleSheet.create({
   fieldError: {
     borderColor: colors.danger,
   },
+  fieldDisabled: {
+    backgroundColor: colors.background,
+    opacity: 0.7,
+  },
   icon: {
     justifyContent: "center",
   },
@@ -110,6 +137,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.text,
     paddingVertical: 0,
+  },
+  inputDisabled: {
+    color: colors.textLight,
   },
   errorText: {
     fontSize: 12,

@@ -1,11 +1,22 @@
-import React from "react";
-import { View, Text, Pressable, StyleSheet } from "react-native";
+import React, { useMemo } from "react";
+import { View, Text, Pressable, ActivityIndicator, StyleSheet } from "react-native";
 
-import colors from "../../constants/colors";
+import { useTheme } from "../../context/ThemeContext";
 import ScanLineIcon from "./ScanLineIcon";
 import CheckIcon from "./CheckIcon";
 
-export default function AIScannerCard({ scanned, onScan, detectedTitle, detectedSubtitle, style }) {
+/**
+ * "Scan" button for AI-drafting a report's title/category/description from
+ * its first photo — `status`/`error` come straight from hooks/useAiScan.js,
+ * and `detectedTitle`/`detectedSubtitle` should reflect the form's own
+ * (now AI-filled) title/category, not a separate copy of the result.
+ */
+export default function AIScannerCard({ status, error, onScan, detectedTitle, detectedSubtitle, style }) {
+  const colors = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  const scanning = status === "scanning";
+  const done = status === "done";
+
   return (
     <View style={[styles.card, style]}>
       <View style={styles.row}>
@@ -18,28 +29,34 @@ export default function AIScannerCard({ scanned, onScan, detectedTitle, detected
           <Text style={styles.subtitle}>Point at item — AI fills everything in</Text>
         </View>
 
-        {!scanned ? (
-          <Pressable style={styles.scanButton} onPress={onScan}>
-            <Text style={styles.scanButtonText}>Scan</Text>
-          </Pressable>
-        ) : (
+        {scanning ? (
+          <ActivityIndicator color={colors.purple} />
+        ) : done ? (
           <View style={styles.doneBadge}>
             <CheckIcon size={14} color={colors.success} strokeWidth={3} />
           </View>
+        ) : (
+          <Pressable style={styles.scanButton} onPress={onScan}>
+            <Text style={styles.scanButtonText}>Scan</Text>
+          </Pressable>
         )}
       </View>
 
-      {scanned ? (
+      {done ? (
         <View style={styles.result}>
-          <Text style={styles.resultTitle}>{detectedTitle}</Text>
+          <Text style={styles.resultTitle} numberOfLines={1}>
+            Detected: {detectedTitle}
+          </Text>
           <Text style={styles.resultSubtitle}>{detectedSubtitle}</Text>
         </View>
+      ) : status === "error" ? (
+        <Text style={styles.errorText}>{error}</Text>
       ) : null}
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors) => StyleSheet.create({
   card: {
     padding: 16,
     borderRadius: 16,
@@ -97,7 +114,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
     padding: 12,
     borderRadius: 12,
-    backgroundColor: "#fff",
+    backgroundColor: colors.background,
     shadowColor: "#0F172A",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
@@ -113,5 +130,11 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.textLight,
     marginTop: 2,
+  },
+  errorText: {
+    fontSize: 12,
+    fontWeight: "500",
+    color: colors.danger,
+    marginTop: 8,
   },
 });

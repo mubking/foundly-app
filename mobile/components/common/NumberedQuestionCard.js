@@ -1,11 +1,13 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { View, Text, StyleSheet } from "react-native";
 
-import colors from "../../constants/colors";
+import { useTheme } from "../../context/ThemeContext";
 import Card from "./Card";
 import Input from "../Input/Input";
 
 export default function NumberedQuestionCard({ number, question, value, onChangeText, hint, style }) {
+  const colors = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
     <Card style={[styles.card, style]}>
       <View style={styles.header}>
@@ -20,7 +22,7 @@ export default function NumberedQuestionCard({ number, question, value, onChange
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors) => StyleSheet.create({
   card: {
     padding: 16,
   },

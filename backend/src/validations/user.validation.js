@@ -10,4 +10,14 @@ export const updateProfileSchema = z.object({
   lastName: z.string().min(2, "Last name must be at least 2 characters").optional(),
   phone: z.string().min(10, "Phone number must be at least 10 characters").optional(),
   avatar: z.url("Avatar must be a valid URL").optional(),
+  emailNotifications: z.boolean().optional(),
+});
+
+// Backs POST/DELETE /api/users/push-token. An Expo push token always looks
+// like "ExponentPushToken[...]" (or "ExpoPushToken[...]"), but this only
+// checks for a non-empty string rather than that exact shape — good enough
+// to reject empty/missing input, and doesn't couple this schema to Expo's
+// token format changing.
+export const pushTokenSchema = z.object({
+  token: z.string().trim().min(1, "token is required"),
 });

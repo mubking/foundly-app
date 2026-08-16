@@ -1,16 +1,24 @@
-import React from "react";
-import { View, Text, Image, StyleSheet } from "react-native";
+import React, { useCallback, useMemo } from "react";
+import { View, Text, StyleSheet } from "react-native";
 
-import colors from "../../constants/colors";
+import { useTheme } from "../../context/ThemeContext";
 import Card from "../common/Card";
 import Pill from "../common/Pill";
 import MapPinIcon from "../common/MapPinIcon";
+import SafeImage from "../common/SafeImage";
 
-export default function ItemCardGrid({ item, onPress, style }) {
+function ItemCardGrid({ item, onPress, style }) {
+  const colors = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  // Built here, not with an inline arrow at the call site — keeps this
+  // prop's identity stable across a parent re-render that doesn't touch
+  // `item`, so React.memo below actually skips re-rendering this card.
+  const handlePress = useCallback(() => onPress(item), [onPress, item]);
+
   return (
-    <Card onPress={onPress} style={[styles.card, style]}>
+    <Card onPress={handlePress} style={[styles.card, style]}>
       <View style={styles.imageWrap}>
-        <Image source={item.image} style={styles.image} />
+        <SafeImage source={item.image} style={styles.image} />
         <View style={styles.badgeWrap}>
           <Pill label={item.type === "lost" ? "LOST" : "FOUND"} variant={item.type === "lost" ? "red" : "green"} />
         </View>
@@ -32,7 +40,9 @@ export default function ItemCardGrid({ item, onPress, style }) {
   );
 }
 
-const styles = StyleSheet.create({
+export default React.memo(ItemCardGrid);
+
+const makeStyles = (colors) => StyleSheet.create({
   card: {
     overflow: "hidden",
   },

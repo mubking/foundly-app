@@ -1,7 +1,7 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { View, Text, StyleSheet } from "react-native";
 
-import colors from "../../constants/colors";
+import { useTheme } from "../../context/ThemeContext";
 import CheckIcon from "./CheckIcon";
 import Card from "./Card";
 
@@ -29,6 +29,8 @@ const SIZES = {
 };
 
 export default function StatusTimeline({ steps, title = "Status Timeline", size = "default", style }) {
+  const colors = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const s = SIZES[size];
 
   return (
@@ -98,7 +100,7 @@ export default function StatusTimeline({ steps, title = "Status Timeline", size 
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors) => StyleSheet.create({
   card: {
     padding: 16,
   },

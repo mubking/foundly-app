@@ -1,26 +1,33 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { View, Text, Image, Pressable, StyleSheet } from "react-native";
 
-import colors from "../../constants/colors";
+import { useTheme } from "../../context/ThemeContext";
 import images from "../../constants/images";
 import MapPinIcon from "./MapPinIcon";
 
 export default function LocationMapPreview({ label = "Pin Location", onPress, style }) {
+  const colors = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  // No pin-picking UI exists yet (no maps SDK integrated) — callers that
+  // don't pass `onPress` get a plain, non-interactive preview instead of a
+  // button that looks tappable but does nothing.
+  const Wrapper = onPress ? Pressable : View;
+
   return (
     <View style={[styles.wrap, style]}>
       <Image source={images.misc.mapPlaceholder} style={styles.image} />
 
       <View style={styles.overlay}>
-        <Pressable style={styles.button} onPress={onPress}>
+        <Wrapper style={styles.button} onPress={onPress}>
           <MapPinIcon size={16} color={colors.danger} />
           <Text style={styles.buttonText}>{label}</Text>
-        </Pressable>
+        </Wrapper>
       </View>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors) => StyleSheet.create({
   wrap: {
     height: 176,
     borderRadius: 24,

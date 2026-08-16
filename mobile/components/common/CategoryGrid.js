@@ -1,9 +1,11 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { View, Text, Pressable, StyleSheet } from "react-native";
 
-import colors from "../../constants/colors";
+import { useTheme } from "../../context/ThemeContext";
 
 export default function CategoryGrid({ categories, selected, onSelect, style }) {
+  const colors = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
     <View style={[styles.grid, style]}>
       {categories.map((cat) => {
@@ -23,7 +25,7 @@ export default function CategoryGrid({ categories, selected, onSelect, style }) 
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors) => StyleSheet.create({
   grid: {
     flexDirection: "row",
     flexWrap: "wrap",

@@ -24,14 +24,19 @@ export function success(data, message = "Success", status = 200) {
  *
  * @param {string} message - Human-readable error message.
  * @param {number} status - HTTP status code.
+ * @param {Record<string, string>} [headers] - Extra response headers (e.g. `Retry-After` on 429s).
+ * @param {string} [code] - Stable machine-readable error code (e.g. `AI_UNAVAILABLE`), so
+ *   clients can branch on failure type instead of parsing `message` text. Omitted from the
+ *   response body entirely when not given, so existing callers are unaffected.
  * @returns {NextResponse}
  */
-export function error(message = "Something went wrong", status = 500) {
+export function error(message = "Something went wrong", status = 500, headers = {}, code) {
   return NextResponse.json(
     {
       success: false,
       message,
+      ...(code ? { code } : null),
     },
-    { status }
+    { status, headers }
   );
 }

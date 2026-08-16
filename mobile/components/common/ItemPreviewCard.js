@@ -1,17 +1,20 @@
-import React from "react";
-import { View, Text, Image, StyleSheet } from "react-native";
+import React, { useMemo } from "react";
+import { View, Text, StyleSheet } from "react-native";
 
-import colors from "../../constants/colors";
+import { useTheme } from "../../context/ThemeContext";
 import Card from "./Card";
 import Pill from "./Pill";
 import MapPinIcon from "./MapPinIcon";
 import ClockIcon from "./ClockIcon";
+import SafeImage from "./SafeImage";
 
 export default function ItemPreviewCard({ image, type, title, reward, location, time, style }) {
+  const colors = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
     <Card style={[styles.card, style]}>
       <View style={styles.imageWrap}>
-        <Image source={image} style={styles.image} />
+        <SafeImage source={image} style={styles.image} iconSize={28} />
         <View style={styles.badgeRow}>
           <Pill label={type === "lost" ? "LOST" : "FOUND"} variant={type === "lost" ? "red" : "green"} />
           {reward ? <Pill label={`$${reward} reward`} variant="amber" /> : null}
@@ -35,7 +38,7 @@ export default function ItemPreviewCard({ image, type, title, reward, location, 
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors) => StyleSheet.create({
   card: {
     overflow: "hidden",
   },

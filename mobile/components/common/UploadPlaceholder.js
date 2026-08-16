@@ -1,10 +1,12 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { View, Text, Pressable, StyleSheet } from "react-native";
 
-import colors from "../../constants/colors";
+import { useTheme } from "../../context/ThemeContext";
 import UploadIcon from "./UploadIcon";
 
 export default function UploadPlaceholder({ title, subtitle, onPress, style }) {
+  const colors = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
     <Pressable onPress={onPress} style={[styles.wrap, style]}>
       <View style={styles.iconBadge}>
@@ -16,7 +18,7 @@ export default function UploadPlaceholder({ title, subtitle, onPress, style }) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors) => StyleSheet.create({
   wrap: {
     height: 176,
     borderRadius: 24,

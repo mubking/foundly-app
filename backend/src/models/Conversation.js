@@ -17,6 +17,23 @@ const conversationSchema = new mongoose.Schema(
       ref: "Message",
       default: null,
     },
+
+    // Which listing this conversation started from, if any — set once, at
+    // creation, from POST /api/chat/messages (see that route for details).
+    // Both nullable: not every conversation originates from an item, and
+    // conversations created before this field existed have neither. Same
+    // polymorphic-ref shape as Claim.item/itemType and Report.target/targetType.
+    item: {
+      type: mongoose.Schema.Types.ObjectId,
+      refPath: "itemType",
+      default: null,
+    },
+
+    itemType: {
+      type: String,
+      enum: ["LostItem", "FoundItem"],
+      default: null,
+    },
   },
   {
     timestamps: true,

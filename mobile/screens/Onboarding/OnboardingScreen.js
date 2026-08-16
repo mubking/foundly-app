@@ -162,11 +162,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 12,
   },
-  getStartedButton: {
-    // flex: 1
-    // 
-    // ,
-  },
+  getStartedButton: {},
   signInButton: {
     height: 56,
     paddingHorizontal: 20,

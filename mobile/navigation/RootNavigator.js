@@ -6,19 +6,28 @@ import OnboardingScreen from "../screens/Onboarding/OnboardingScreen";
 import LoginScreen from "../screens/Auth/LoginScreen";
 import RegisterScreen from "../screens/Auth/RegisterScreen";
 import ForgotPasswordScreen from "../screens/Auth/ForgotPasswordScreen";
+import ResetPasswordScreen from "../screens/Auth/ResetPasswordScreen";
 import HomeScreen from "../screens/Home/HomeScreen";
 import SearchScreen from "../screens/Search/SearchScreen";
+import SavedSearchesScreen from "../screens/Search/SavedSearchesScreen";
 import ItemDetailsScreen from "../screens/Details/ItemDetailsScreen";
+import EditListingScreen from "../screens/Details/EditListingScreen";
 import ReportLostScreen from "../screens/Lost/ReportLostScreen";
 import ReportFoundScreen from "../screens/Found/ReportFoundScreen";
 import ClaimVerificationScreen from "../screens/Claim/ClaimVerificationScreen";
+import OwnerClaimsScreen from "../screens/Claim/OwnerClaimsScreen";
+import ClaimDetailsScreen from "../screens/Claim/ClaimDetailsScreen";
 import NotificationsScreen from "../screens/Notifications/NotificationsScreen";
+import ConversationsScreen from "../screens/Chat/ConversationsScreen";
 import ChatScreen from "../screens/Chat/ChatScreen";
 import ProfileScreen from "../screens/Profile/ProfileScreen";
+import EditProfileScreen from "../screens/Profile/EditProfileScreen";
+import ChangePasswordScreen from "../screens/Profile/ChangePasswordScreen";
 import MyLostScreen from "../screens/Lost/MyLostScreen";
 import MyFoundScreen from "../screens/Found/MyFoundScreen";
 import RewardsScreen from "../screens/Rewards/RewardsScreen";
 import SettingsScreen from "../screens/Settings/SettingsScreen";
+import MatchesScreen from "../screens/Matches/MatchesScreen";
 
 const Stack = createNativeStackNavigator();
 
@@ -56,6 +65,11 @@ export default function RootNavigator() {
       />
 
       <Stack.Screen
+        name="ResetPassword"
+        component={ResetPasswordScreen}
+      />
+
+      <Stack.Screen
         name="Home"
         component={HomeScreen}
       />
@@ -66,8 +80,18 @@ export default function RootNavigator() {
       />
 
       <Stack.Screen
+        name="SavedSearches"
+        component={SavedSearchesScreen}
+      />
+
+      <Stack.Screen
         name="ItemDetails"
         component={ItemDetailsScreen}
+      />
+
+      <Stack.Screen
+        name="EditListing"
+        component={EditListingScreen}
       />
 
       <Stack.Screen
@@ -86,18 +110,43 @@ export default function RootNavigator() {
       />
 
       <Stack.Screen
+        name="OwnerClaims"
+        component={OwnerClaimsScreen}
+      />
+
+      <Stack.Screen
+        name="ClaimDetails"
+        component={ClaimDetailsScreen}
+      />
+
+      <Stack.Screen
         name="Notifications"
         component={NotificationsScreen}
       />
 
       <Stack.Screen
         name="Chat"
+        component={ConversationsScreen}
+      />
+
+      <Stack.Screen
+        name="ChatThread"
         component={ChatScreen}
       />
 
       <Stack.Screen
         name="Profile"
         component={ProfileScreen}
+      />
+
+      <Stack.Screen
+        name="EditProfile"
+        component={EditProfileScreen}
+      />
+
+      <Stack.Screen
+        name="ChangePassword"
+        component={ChangePasswordScreen}
       />
 
       <Stack.Screen
@@ -118,6 +167,11 @@ export default function RootNavigator() {
       <Stack.Screen
         name="Settings"
         component={SettingsScreen}
+      />
+
+      <Stack.Screen
+        name="Matches"
+        component={MatchesScreen}
       />
     </Stack.Navigator>
   );

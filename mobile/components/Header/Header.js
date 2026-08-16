@@ -1,14 +1,22 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { View, Text, Pressable, StyleSheet } from "react-native";
 
-import colors from "../../constants/colors";
+import { useTheme } from "../../context/ThemeContext";
 import ArrowLeftIcon from "../common/ArrowLeftIcon";
 
 export default function Header({ onBack, title, subtitle, right }) {
+  const colors = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
     <View style={styles.row}>
       {onBack ? (
-        <Pressable onPress={onBack} style={styles.backButton} hitSlop={8}>
+        <Pressable
+          onPress={onBack}
+          style={styles.backButton}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+        >
           <ArrowLeftIcon size={20} color={colors.text} strokeWidth={2.5} />
         </Pressable>
       ) : (
@@ -16,8 +24,16 @@ export default function Header({ onBack, title, subtitle, right }) {
       )}
 
       <View style={styles.titleBlock}>
-        {title ? <Text style={styles.title}>{title}</Text> : null}
-        {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+        {title ? (
+          <Text style={styles.title} numberOfLines={1}>
+            {title}
+          </Text>
+        ) : null}
+        {subtitle ? (
+          <Text style={styles.subtitle} numberOfLines={1}>
+            {subtitle}
+          </Text>
+        ) : null}
       </View>
 
       {right || <View style={styles.spacer} />}
@@ -25,12 +41,12 @@ export default function Header({ onBack, title, subtitle, right }) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors) => StyleSheet.create({
   row: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    height: 60,
+    minHeight: 60,
     paddingHorizontal: 20,
   },
   backButton: {

@@ -1,14 +1,31 @@
 import mongoose from "mongoose";
 
 import { connectDB } from "@/lib/db";
-import { getAuthUser, AuthError } from "@/lib/auth";
+import { getAuthUser, requireActiveUser, AuthError } from "@/lib/auth";
+import { parsePagination } from "@/utils/pagination";
 import { sendMessageSchema } from "@/validations/chat.validation";
 import Conversation from "@/models/Conversation";
 import Message from "@/models/Message";
-import User from "@/models/User";
+import { createMessage, MessageServiceError } from "@/services/message.service";
 import { success, error } from "@/lib/response";
+import { rateLimitOrError } from "@/lib/rateLimit";
+import { withRequestLogging } from "@/lib/logger";
 
-export async function POST(request) {
+const MESSAGE_SELECT = "conversation sender text read isSystem createdAt";
+
+function toMessageResult(message) {
+  return {
+    id: message._id,
+    conversationId: message.conversation,
+    sender: message.sender,
+    text: message.text,
+    read: message.read,
+    isSystem: message.isSystem || false,
+    createdAt: message.createdAt,
+  };
+}
+
+async function handleGET(request) {
   try {
     let user;
     try {
@@ -17,6 +34,73 @@ export async function POST(request) {
       if (err instanceof AuthError) return error(err.message, err.status);
       throw err;
     }
+
+    const { searchParams } = new URL(request.url);
+    const conversationId = searchParams.get("conversationId");
+
+    if (!conversationId || !mongoose.Types.ObjectId.isValid(conversationId)) {
+      return error("A valid conversationId query parameter is required", 400);
+    }
+
+    const { page, limit, skip } = parsePagination(searchParams);
+
+    await connectDB();
+
+    const conversation = await Conversation.findById(conversationId).select("participants").lean();
+    if (!conversation) {
+      return error("Conversation not found", 404);
+    }
+
+    const isParticipant = conversation.participants.some((p) => p.toString() === user.id);
+    if (!isParticipant) {
+      return error("You are not a participant in this conversation", 403);
+    }
+
+    const filter = { conversation: conversationId };
+
+    // Chronological order (oldest first) — matches the message thread the
+    // Message model's compound index (conversation, createdAt) is built for.
+    const [messages, total] = await Promise.all([
+      Message.find(filter)
+        .select(MESSAGE_SELECT)
+        .sort({ createdAt: 1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      Message.countDocuments(filter),
+    ]);
+
+    return success({
+      items: messages.map(toMessageResult),
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+    });
+  } catch (err) {
+    console.error("Get messages error:", err);
+    return error("Something went wrong while fetching messages", 500);
+  }
+}
+
+export const GET = withRequestLogging(handleGET, { route: "/api/chat/messages" });
+
+async function handlePOST(request) {
+  try {
+    let user;
+    try {
+      user = await requireActiveUser(request);
+    } catch (err) {
+      if (err instanceof AuthError) return error(err.message, err.status);
+      throw err;
+    }
+
+    const limited = await rateLimitOrError({
+      key: `chat-messages:user:${user.id}`,
+      limit: 60,
+      windowSeconds: 60,
+    });
+    if (limited) return limited;
 
     let body;
     try {
@@ -31,73 +115,33 @@ export async function POST(request) {
       return error(message, 400);
     }
 
-    const { conversationId, recipientId, text } = parsed.data;
+    const { conversationId, recipientId, itemId, itemType, text } = parsed.data;
 
-    await connectDB();
-
-    let conversation;
-
-    if (conversationId) {
-      if (!mongoose.Types.ObjectId.isValid(conversationId)) {
-        return error("Invalid conversation ID", 400);
-      }
-
-      conversation = await Conversation.findById(conversationId);
-      if (!conversation) {
-        return error("Conversation not found", 404);
-      }
-
-      const isParticipant = conversation.participants.some((p) => p.toString() === user.id);
-      if (!isParticipant) {
-        return error("You are not a participant in this conversation", 403);
-      }
-    } else {
-      if (!mongoose.Types.ObjectId.isValid(recipientId)) {
-        return error("Invalid recipient ID", 400);
-      }
-
-      if (recipientId === user.id) {
-        return error("You cannot start a conversation with yourself", 400);
-      }
-
-      const recipient = await User.findById(recipientId).select("_id").lean();
-      if (!recipient) {
-        return error("Recipient not found", 404);
-      }
-
-      // A conversation is uniquely identified by its pair of participants —
-      // look for an existing one before creating a new one.
-      conversation = await Conversation.findOne({
-        participants: { $all: [user.id, recipientId], $size: 2 },
-      });
-
-      if (!conversation) {
-        conversation = await Conversation.create({
-          participants: [user.id, recipientId],
-        });
-      }
+    let conversation, newMessage;
+    try {
+      ({ conversation, message: newMessage } = await createMessage({
+        senderId: user.id,
+        conversationId,
+        recipientId,
+        itemId,
+        itemType,
+        text,
+      }));
+    } catch (err) {
+      if (err instanceof MessageServiceError) return error(err.message, err.status);
+      throw err;
     }
 
-    const newMessage = await Message.create({
-      conversation: conversation._id,
-      sender: user.id,
-      text,
-    });
-
-    // .save() bumps updatedAt via the schema's timestamps option, which is
-    // what the conversation list's "newest first" ordering sorts on.
-    conversation.lastMessage = newMessage._id;
-    await conversation.save();
-
     return success(
-      {
-        id: newMessage._id,
-        conversationId: conversation._id,
+      toMessageResult({
+        _id: newMessage._id,
+        conversation: conversation._id,
         sender: newMessage.sender,
         text: newMessage.text,
         read: newMessage.read,
+        isSystem: newMessage.isSystem,
         createdAt: newMessage.createdAt,
-      },
+      }),
       "Message sent successfully",
       201
     );
@@ -111,3 +155,5 @@ export async function POST(request) {
     return error("Something went wrong while sending the message", 500);
   }
 }
+
+export const POST = withRequestLogging(handlePOST, { route: "/api/chat/messages" });

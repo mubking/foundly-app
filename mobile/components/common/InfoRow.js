@@ -1,9 +1,10 @@
 import React from "react";
 import { View, Text, StyleSheet } from "react-native";
 
-import colors from "../../constants/colors";
+import { useTheme } from "../../context/ThemeContext";
 
 export default function InfoRow({ icon, iconBg, title, titleColor, subtitle, subtitleColor, style }) {
+  const colors = useTheme();
   return (
     <View style={[styles.row, style]}>
       {iconBg ? <View style={[styles.iconBadge, { backgroundColor: iconBg }]}>{icon}</View> : icon}
