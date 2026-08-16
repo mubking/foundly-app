@@ -18,6 +18,7 @@ let socket = null;
  * @param {string} token
  */
 export function connectSocket(token) {
+  if (!SOCKET_URL || !token) return null;
   if (socket) return socket;
 
   socket = io(SOCKET_URL, {
