@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "mobile",
-    "slug": "mobile",
+    "slug": "foundly",
     "version": "1.0.0",
     "scheme": "foundly",
     "orientation": "portrait",
@@ -46,7 +46,9 @@
     ],
     "extra": {
       "eas": {
-"projectId": "ac71f9f9-2597-4dc4-ba20-408fc2b3800a"      }
-    }
+        "projectId": "ac71f9f9-2597-4dc4-ba20-408fc2b3800a"
+      }
+    },
+    "owner": "mubking"
   }
 }
