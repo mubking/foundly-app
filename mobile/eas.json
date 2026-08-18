@@ -20,7 +20,8 @@
     "production": {
       "autoIncrement": true,
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://foundly-app-topaz.vercel.app/api"
+        "EXPO_PUBLIC_API_URL": "https://foundly-app-topaz.vercel.app/api",
+        "EXPO_PUBLIC_SOCKET_URL": "https://foundly-app.onrender.com"
       },
       "android": {
         "buildType": "apk"
