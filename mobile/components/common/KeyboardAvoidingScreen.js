@@ -1,24 +1,31 @@
 import React from "react";
-import { KeyboardAvoidingView, Platform, StyleSheet } from "react-native";
+import { StyleSheet } from "react-native";
+import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 
 /**
- * Shared keyboard-avoidance wrapper for screens with text inputs — every
- * such screen needs the same iOS/Android `behavior` split, so this
- * centralizes it instead of repeating the Platform check per screen.
+ * Shared keyboard-avoidance wrapper for screens with text inputs.
  *
- * Android is left with no `behavior` (a no-op wrapper) on purpose: Expo's
- * default `windowSoftInputMode="adjustResize"` already shrinks the root
- * view when the keyboard opens, so pairing that with `behavior="height"`
- * here double-applies the resize. The container shrinks once natively, then
- * again on the next render, so a tap that lands mid-reflow misses whatever
- * input it was aimed at — that's the "first tap doesn't focus, takes 2-4
- * tries" bug. iOS has no native resize, so it still needs `padding` here.
+ * Uses react-native-keyboard-controller's KeyboardAvoidingView instead of
+ * React Native core's — core's Android implementation is broken under
+ * edge-to-edge (this app has `edgeToEdgeEnabled: true`, mandatory since
+ * Expo SDK 54/Android 15): the keyboard opens and covers the input instead
+ * of pushing it into view. Fixed upstream in React Native 0.86
+ * (facebook/react-native#49759, facebook/react-native#55855) but this app
+ * is on 0.81, so this library — the fix recommended by RN's own
+ * maintainers in that issue thread — stands in until an RN upgrade.
+ * `behavior="padding"` matches this component's previous iOS-only
+ * behavior, now applied consistently on Android too.
  */
-export default function KeyboardAvoidingScreen({ children, style, keyboardVerticalOffset = 0 }) {
+export default function KeyboardAvoidingScreen({
+  children,
+  style,
+  behavior = "padding",
+  keyboardVerticalOffset = 0,
+}) {
   return (
     <KeyboardAvoidingView
       style={[styles.flex, style]}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      behavior={behavior}
       keyboardVerticalOffset={keyboardVerticalOffset}
     >
       {children}

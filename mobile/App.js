@@ -1,7 +1,13 @@
+import { KeyboardProvider } from "react-native-keyboard-controller";
+
 import AppNavigator from "./navigation/AppNavigator";
 
 export default function App() {
-  return <AppNavigator />;
+  return (
+    <KeyboardProvider>
+      <AppNavigator />
+    </KeyboardProvider>
+  );
 }
 
 

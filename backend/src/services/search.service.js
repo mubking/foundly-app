@@ -73,7 +73,14 @@ function buildMatchStage(type, params) {
   // excludes every document (missing field never satisfies $gt).
   if (hasReward) match.reward = { $gt: 0 };
 
-  match.status = status || { $nin: ["suspended", "removed"] };
+  // Default (no explicit status filter, i.e. the main/home feed and plain
+  // browse/search): resolved items — "claimed" (approved claim) and
+  // "closed" (owner marked it returned) — are done, same as
+  // admin-hidden "suspended"/"removed", so they drop out of the feed too.
+  // An explicit `status` (e.g. "My Found"/"My Lost" history screens, which
+  // call this with no status at all but read `owner`-scoped results
+  // directly, or admin tooling, which queries its own routes) always wins.
+  match.status = status || { $nin: ["suspended", "removed", "claimed", "closed"] };
 
   if (blockedOwnerIds?.length) match.owner = { $nin: blockedOwnerIds };
 
@@ -355,7 +362,11 @@ export function buildSavedSearchName(filters) {
  */
 export async function getEmptyStateSuggestions(filters) {
   const { category, city, state, brand, color, blockedOwnerIds } = filters;
-  const baseFilter = { status: { $nin: ["suspended", "removed"] } };
+  // Mirrors buildMatchStage's default status filter — recommendations are
+  // only ever computed for the same default (no explicit status) feed/search
+  // that hides resolved (claimed/closed) items, so they must stay excluded
+  // here too.
+  const baseFilter = { status: { $nin: ["suspended", "removed", "claimed", "closed"] } };
   if (blockedOwnerIds?.length) baseFilter.owner = { $nin: blockedOwnerIds };
 
   const distinctAcrossBoth = async (field, extraFilter) => {

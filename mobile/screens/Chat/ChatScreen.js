@@ -113,7 +113,7 @@ export default function ChatScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
-      <KeyboardAvoidingScreen>
+      <KeyboardAvoidingScreen behavior="translate-with-padding">
         <View style={styles.header}>
           <Pressable
             style={styles.headerIconButton}
