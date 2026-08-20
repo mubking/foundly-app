@@ -1,7 +1,7 @@
 import React, { useCallback, useRef, useState, useMemo } from "react";
 import { View, Text, FlatList, Pressable, StyleSheet } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
-import { useNavigation, useRoute } from "@react-navigation/native";
+import { useFocusEffect, useNavigation, useRoute } from "@react-navigation/native";
 
 import { useTheme } from "../../context/ThemeContext";
 import { useAuth } from "../../context/AuthContext";
@@ -9,6 +9,7 @@ import { useMessages } from "../../hooks/useMessages";
 import { useConversationDetails } from "../../hooks/useConversationDetails";
 import { getInitials } from "../../utils/initials";
 import { CLAIM_STATUS_VARIANT, CLAIM_STATUS_LABEL } from "../../constants/claimStatus";
+import { setActiveConversationId } from "../../services/activeConversation";
 
 import ArrowLeftIcon from "../../components/common/ArrowLeftIcon";
 import Avatar from "../../components/Avatar/Avatar";
@@ -62,12 +63,33 @@ export default function ChatScreen() {
   const [sendError, setSendError] = useState(null);
   const scrollRef = useRef(null);
 
-  const { messages, loading, sending, error, sendMessage, retryMessage, refresh } = useMessages({
+  const {
+    messages,
+    loading,
+    sending,
+    error,
+    conversationId: liveConversationId,
+    sendMessage,
+    retryMessage,
+    refresh,
+  } = useMessages({
     conversationId,
     recipientId,
     itemId,
     itemType,
   });
+
+  // Lets NotificationToastHost skip a redundant "new message" toast for the
+  // conversation the user is already looking at — that message already
+  // arrives live via useMessages' own socket subscription. Cleared on blur
+  // (navigating away) as well as unmount, since React Navigation keeps
+  // screens mounted-but-blurred in its stack.
+  useFocusEffect(
+    useCallback(() => {
+      setActiveConversationId(liveConversationId);
+      return () => setActiveConversationId(null);
+    }, [liveConversationId])
+  );
 
   const name = participant ? `${participant.firstName} ${participant.lastName}`.trim() : "Unknown user";
 

@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 
 import { useAuth } from "../../context/AuthContext";
 import { getSocket } from "../../services/socket";
+import { getActiveConversationId } from "../../services/activeConversation";
 import {
   getNotificationRoute,
   markAsRead as markAsReadRequest,
@@ -53,6 +54,16 @@ export default function NotificationToastHost() {
       if (seenIdsRef.current.includes(notification.id)) return;
       seenIdsRef.current.push(notification.id);
       if (seenIdsRef.current.length > SEEN_IDS_LIMIT) seenIdsRef.current.shift();
+
+      // A "new_message"/"claim_reply" notification whose conversation the
+      // user is already looking at would be redundant — that same message
+      // already just arrived live in the open thread via useMessages' own
+      // socket subscription (see ChatScreen/services/activeConversation.js).
+      // Still marked seen above so a duplicate delivery of the same id can't
+      // show up later once the user has navigated away.
+      const isActiveConversation =
+        notification.targetType === "Conversation" && notification.targetId === getActiveConversationId();
+      if (isActiveConversation) return;
 
       setToast(notification);
       if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current);

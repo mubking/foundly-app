@@ -48,6 +48,7 @@ let tempIdCounter = 0;
  *   loading: boolean,
  *   sending: boolean,
  *   error: string,
+ *   conversationId: string | null,
  *   sendMessage: (text: string) => Promise<{ok: boolean, message?: string}>,
  *   retryMessage: (tempId: string, text: string) => Promise<{ok: boolean, message?: string}>,
  *   refresh: () => Promise<void>,
@@ -194,5 +195,5 @@ export function useMessages({ conversationId: initialConversationId, recipientId
     [sendMessage]
   );
 
-  return { messages, loading, sending, error, sendMessage, retryMessage, refresh: load };
+  return { messages, loading, sending, error, conversationId, sendMessage, retryMessage, refresh: load };
 }
