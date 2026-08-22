@@ -195,7 +195,7 @@ export default function SettingsScreen() {
           />
           <SettingsRow
             icon={<InfoIcon size={18} color={colors.textLight} />}
-            label="About Foundly"
+            label="About Reunio"
             subtitle="Version 2.4.1"
             right={null}
             last

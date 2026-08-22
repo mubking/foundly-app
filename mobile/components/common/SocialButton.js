@@ -3,13 +3,17 @@ import { Pressable, Text, StyleSheet } from "react-native";
 
 import { useTheme } from "../../context/ThemeContext";
 
-export default function SocialButton({ variant = "light", icon, label, onPress, style }) {
+export default function SocialButton({ variant = "light", icon, label, onPress, disabled, style }) {
   const colors = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const isDark = variant === "dark";
 
   return (
-    <Pressable onPress={onPress} style={[styles.base, isDark ? styles.dark : styles.light, style]}>
+    <Pressable
+      onPress={onPress}
+      disabled={disabled}
+      style={[styles.base, isDark ? styles.dark : styles.light, disabled && styles.disabled, style]}
+    >
       {icon}
       <Text style={[styles.label, isDark && styles.labelDark]}>{label}</Text>
     </Pressable>
@@ -34,6 +38,9 @@ const makeStyles = (colors) => StyleSheet.create({
   dark: {
     backgroundColor: colors.text,
     borderColor: colors.text,
+  },
+  disabled: {
+    opacity: 0.5,
   },
   label: {
     fontSize: 12,

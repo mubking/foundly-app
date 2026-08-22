@@ -30,3 +30,24 @@ export const changePasswordSchema = z.object({
   currentPassword: z.string().min(1, "Current password is required"),
   newPassword: z.string().min(8, "New password must be at least 8 characters"),
 });
+
+export const googleAuthSchema = z.object({
+  idToken: z.string().min(1, "Google ID token is required"),
+});
+
+// `fullName` matches the shape expo-apple-authentication's
+// `credential.fullName` returns - only present on a user's first
+// authorization, and only the tokenized parts we actually use.
+export const appleAuthSchema = z.object({
+  identityToken: z.string().min(1, "Apple identity token is required"),
+  authorizationCode: z.string().optional().nullable(),
+  user: z.string().optional().nullable(),
+  email: z.string().optional().nullable(),
+  fullName: z
+    .object({
+      givenName: z.string().optional().nullable(),
+      familyName: z.string().optional().nullable(),
+    })
+    .optional()
+    .nullable(),
+});

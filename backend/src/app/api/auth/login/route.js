@@ -47,7 +47,11 @@ async function handlePOST(request) {
     // password has `select: false` on the schema, so it must be opted
     // back in explicitly to compare it here.
     const user = await User.findOne({ email }).select("+password");
-    if (!user) {
+    // Social-only accounts (created via Google/Apple, never linked to a
+    // password) have no hash to compare against - bcrypt.compare would
+    // throw on a non-string hash, so reject with the same generic message
+    // rather than let that surface as a 500.
+    if (!user || !user.password) {
       return error(INVALID_CREDENTIALS_MESSAGE, 401);
     }
 

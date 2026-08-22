@@ -57,6 +57,46 @@ export function AuthProvider({ children }) {
   }, []);
 
   /**
+   * Exchanges a verified Google ID token (see services/socialAuth.js's
+   * `googleSignIn()`) for a Reunio session — same token/session
+   * establishment as {@link login}, just a different backend endpoint.
+   * @param {string} idToken
+   * @returns {Promise<object>} The authenticated user.
+   * @throws {ApiError} On a rejected/invalid token or a network/timeout failure.
+   */
+  const loginWithGoogle = useCallback(async (idToken) => {
+    const data = await api.post(
+      "/auth/google",
+      { idToken },
+      { skipUnauthorizedHandler: true }
+    );
+    await saveToken(data.token);
+    setToken(data.token);
+    setUser(data.user);
+    return data.user;
+  }, []);
+
+  /**
+   * Exchanges a verified Apple credential (see services/socialAuth.js's
+   * `appleSignIn()`) for a Reunio session — same token/session
+   * establishment as {@link login}, just a different backend endpoint.
+   * @param {{identityToken: string, authorizationCode: string|null, user: string, email: string|null, fullName: object|null}} credential
+   * @returns {Promise<object>} The authenticated user.
+   * @throws {ApiError} On a rejected/invalid token or a network/timeout failure.
+   */
+  const loginWithApple = useCallback(async ({ identityToken, authorizationCode, user, email, fullName }) => {
+    const data = await api.post(
+      "/auth/apple",
+      { identityToken, authorizationCode, user, email, fullName },
+      { skipUnauthorizedHandler: true }
+    );
+    await saveToken(data.token);
+    setToken(data.token);
+    setUser(data.user);
+    return data.user;
+  }, []);
+
+  /**
    * Requests a password reset code for the given email. Always resolves
    * (the backend returns a generic message whether or not the account
    * exists, so this response can't be used to enumerate emails) — throws
@@ -168,6 +208,8 @@ export function AuthProvider({ children }) {
       isRestoring,
       isAuthenticated: !!token,
       login,
+      loginWithGoogle,
+      loginWithApple,
       register,
       requestPasswordReset,
       resetPassword,
@@ -179,6 +221,8 @@ export function AuthProvider({ children }) {
       token,
       isRestoring,
       login,
+      loginWithGoogle,
+      loginWithApple,
       register,
       requestPasswordReset,
       resetPassword,
@@ -199,6 +243,8 @@ export function AuthProvider({ children }) {
  *   isRestoring: boolean,
  *   isAuthenticated: boolean,
  *   login: (email: string, password: string) => Promise<object>,
+ *   loginWithGoogle: (idToken: string) => Promise<object>,
+ *   loginWithApple: (credential: object) => Promise<object>,
  *   register: (input: object) => Promise<object>,
  *   requestPasswordReset: (email: string) => Promise<object>,
  *   resetPassword: (input: object) => Promise<object>,

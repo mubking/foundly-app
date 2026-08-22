@@ -1,5 +1,5 @@
 import React, { useRef, useState, useMemo } from "react";
-import { View, Text, ScrollView, Alert, StyleSheet } from "react-native";
+import { View, Text, ScrollView, Alert, Platform, StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
@@ -16,18 +16,20 @@ import MailIcon from "../../components/common/MailIcon";
 import PhoneIcon from "../../components/common/PhoneIcon";
 import KeyboardAvoidingScreen from "../../components/common/KeyboardAvoidingScreen";
 import { useAuth } from "../../context/AuthContext";
+import { googleSignIn, appleSignIn } from "../../services/socialAuth";
 
 export default function RegisterScreen() {
   const colors = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const navigation = useNavigation();
-  const { register } = useAuth();
+  const { register, loginWithGoogle, loginWithApple } = useAuth();
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [socialLoading, setSocialLoading] = useState(null); // "google" | "apple" | null
 
   const emailRef = useRef(null);
   const phoneRef = useRef(null);
@@ -66,6 +68,33 @@ export default function RegisterScreen() {
       setError(err.message || "Something went wrong. Please try again.");
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const socialSignInHandlers = {
+    google: async () => {
+      const idToken = await googleSignIn();
+      await loginWithGoogle(idToken);
+    },
+    apple: async () => {
+      const credential = await appleSignIn();
+      await loginWithApple(credential);
+    },
+  };
+
+  const handleSocialSignIn = async (provider) => {
+    if (submitting || socialLoading) return;
+    setError("");
+    setSocialLoading(provider);
+    try {
+      await socialSignInHandlers[provider]();
+      navigation.reset({ index: 0, routes: [{ name: "Home" }] });
+    } catch (err) {
+      if (err.code !== "CANCELLED") {
+        setError(err.message || "Something went wrong. Please try again.");
+      }
+    } finally {
+      setSocialLoading(null);
     }
   };
 
@@ -158,13 +187,19 @@ export default function RegisterScreen() {
               <SocialButton
                 variant="light"
                 icon={<FontAwesome name="google" size={16} color={colors.text} />}
-                label="Continue with Google"
+                label={socialLoading === "google" ? "Signing in..." : "Continue with Google"}
+                onPress={() => handleSocialSignIn("google")}
+                disabled={submitting || !!socialLoading}
               />
-              <SocialButton
-                variant="dark"
-                icon={<FontAwesome name="apple" size={18} color="#fff" />}
-                label="Continue with Apple"
-              />
+              {Platform.OS === "ios" && (
+                <SocialButton
+                  variant="dark"
+                  icon={<FontAwesome name="apple" size={18} color="#fff" />}
+                  label={socialLoading === "apple" ? "Signing in..." : "Continue with Apple"}
+                  onPress={() => handleSocialSignIn("apple")}
+                  disabled={submitting || !!socialLoading}
+                />
+              )}
             </View>
 
             <Text style={styles.footerText}>

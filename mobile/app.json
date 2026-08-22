@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Foundly",
+    "name": "Reunio",
     "slug": "foundly",
     "version": "1.0.0",
     "scheme": "foundly",
@@ -11,21 +11,22 @@
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#F8F9FC"
     },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.foundly.app",
+      "usesAppleSignIn": true,
       "infoPlist": {
-        "NSCameraUsageDescription": "Foundly uses your camera so you can photograph lost or found items and verify claims.",
-        "NSPhotoLibraryUsageDescription": "Foundly needs access to your photos so you can attach images to lost and found reports and claims.",
-        "NSLocationWhenInUseUsageDescription": "Foundly uses your location to show lost and found items near you."
+        "NSCameraUsageDescription": "Reunio uses your camera so you can photograph lost or found items and verify claims.",
+        "NSPhotoLibraryUsageDescription": "Reunio needs access to your photos so you can attach images to lost and found reports and claims.",
+        "NSLocationWhenInUseUsageDescription": "Reunio uses your location to show lost and found items near you."
       }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#2563EB"
+        "backgroundColor": "#142D5C"
       },
       "edgeToEdgeEnabled": true,
       "package": "com.foundly.app"
@@ -50,6 +51,13 @@
             "enableProguardInReleaseBuilds": true,
             "enableShrinkResourcesInReleaseBuilds": true
           }
+        }
+      ],
+      "expo-apple-authentication",
+      [
+        "@react-native-google-signin/google-signin",
+        {
+          "iosUrlScheme": "com.googleusercontent.apps.REPLACE_WITH_IOS_CLIENT_ID"
         }
       ]
     ],

@@ -1,5 +1,5 @@
 import React, { useRef, useState, useMemo } from "react";
-import { View, Text, ScrollView, Pressable, StyleSheet } from "react-native";
+import { View, Text, ScrollView, Pressable, Platform, StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
@@ -14,16 +14,18 @@ import SocialButton from "../../components/common/SocialButton";
 import MailIcon from "../../components/common/MailIcon";
 import KeyboardAvoidingScreen from "../../components/common/KeyboardAvoidingScreen";
 import { useAuth } from "../../context/AuthContext";
+import { googleSignIn, appleSignIn } from "../../services/socialAuth";
 
 export default function LoginScreen() {
   const colors = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const navigation = useNavigation();
-  const { login } = useAuth();
+  const { login, loginWithGoogle, loginWithApple } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [socialLoading, setSocialLoading] = useState(null); // "google" | "apple" | null
 
   const passwordRef = useRef(null);
 
@@ -44,6 +46,33 @@ export default function LoginScreen() {
     }
   };
 
+  const socialSignInHandlers = {
+    google: async () => {
+      const idToken = await googleSignIn();
+      await loginWithGoogle(idToken);
+    },
+    apple: async () => {
+      const credential = await appleSignIn();
+      await loginWithApple(credential);
+    },
+  };
+
+  const handleSocialSignIn = async (provider) => {
+    if (submitting || socialLoading) return;
+    setError("");
+    setSocialLoading(provider);
+    try {
+      await socialSignInHandlers[provider]();
+      navigation.reset({ index: 0, routes: [{ name: "Home" }] });
+    } catch (err) {
+      if (err.code !== "CANCELLED") {
+        setError(err.message || "Something went wrong. Please try again.");
+      }
+    } finally {
+      setSocialLoading(null);
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
       <Header onBack={() => navigation.goBack()} />
@@ -58,7 +87,7 @@ export default function LoginScreen() {
           <BrandMark style={styles.brand} />
 
           <Text style={styles.title}>Welcome back</Text>
-          <Text style={styles.subtitle}>Sign in to your Foundly account.</Text>
+          <Text style={styles.subtitle}>Sign in to your Reunio account.</Text>
 
           <View style={styles.form}>
             <Input
@@ -109,13 +138,19 @@ export default function LoginScreen() {
               <SocialButton
                 variant="light"
                 icon={<FontAwesome name="google" size={16} color={colors.text} />}
-                label="Google"
+                label={socialLoading === "google" ? "Signing in..." : "Google"}
+                onPress={() => handleSocialSignIn("google")}
+                disabled={submitting || !!socialLoading}
               />
-              <SocialButton
-                variant="dark"
-                icon={<FontAwesome name="apple" size={18} color="#fff" />}
-                label="Apple"
-              />
+              {Platform.OS === "ios" && (
+                <SocialButton
+                  variant="dark"
+                  icon={<FontAwesome name="apple" size={18} color="#fff" />}
+                  label={socialLoading === "apple" ? "Signing in..." : "Apple"}
+                  onPress={() => handleSocialSignIn("apple")}
+                  disabled={submitting || !!socialLoading}
+                />
+              )}
             </View>
 
             <Text style={styles.footerText}>

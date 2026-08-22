@@ -27,7 +27,7 @@ const SLIDES = [
     image: images.onboarding[2],
     emoji: "⭐",
     title: "Earn & be trusted",
-    body: "Build your trust score with every return. Earn rewards, community badges, and become a Foundly Hero.",
+    body: "Build your trust score with every return. Earn rewards, community badges, and become a Reunio Hero.",
   },
 ];
 

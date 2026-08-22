@@ -12,7 +12,7 @@ export default function BrandMark({ style }) {
       <View style={styles.badge}>
         <TargetIcon size={17} color="#fff" strokeWidth={1.8} />
       </View>
-      <Text style={styles.text}>Foundly</Text>
+      <Text style={styles.text}>Reunio</Text>
     </View>
   );
 }

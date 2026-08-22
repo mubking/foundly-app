@@ -88,7 +88,7 @@ export default function SplashScreen() {
         </GlassIconBadge>
 
         <View style={styles.textBlock}>
-          <Text style={styles.title}>Foundly</Text>
+          <Text style={styles.title}>Reunio</Text>
           <Text style={styles.subtitle}>Find. Return. Reunite.</Text>
         </View>
       </Animated.View>

@@ -21,7 +21,8 @@
       "autoIncrement": true,
       "env": {
         "EXPO_PUBLIC_API_URL": "https://foundly-app-topaz.vercel.app/api",
-        "EXPO_PUBLIC_SOCKET_URL": "https://foundly-app.onrender.com"
+        "EXPO_PUBLIC_SOCKET_URL": "https://foundly-app.onrender.com",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "301009827520-sncut8e3h7419ao2r4895d88fncle7kd.apps.googleusercontent.com"
       },
       "android": {
         "buildType": "apk"
