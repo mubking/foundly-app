@@ -14,10 +14,11 @@ import { logImageEvent } from "../../utils/imageLogger";
  * behind a bad URL or a missing image. Shows a small spinner while the
  * image is in flight, same treatment as ImageCarousel.
  *
- * `cachePolicy="memory-disk"` is the app's one image-caching strategy: once
- * an image has been downloaded it's kept on disk (survives app restarts)
- * and promoted to memory for the current session, so re-visiting a screen
- * (e.g. Home → Item Details → back → Item Details) never re-downloads it.
+ * Accepts both `{ uri }` sources and raw URL strings because backend chat
+ * payloads expose item images as strings while navigation params may already
+ * be normalized to `{ uri }`. Normalizing here keeps every SafeImage caller
+ * consistent and prevents valid Cloudinary URLs from falling through to the
+ * placeholder.
  */
 export default function SafeImage({ source, style, iconSize = 20, ...imageProps }) {
   const colors = useTheme();
@@ -25,9 +26,10 @@ export default function SafeImage({ source, style, iconSize = 20, ...imageProps 
   const [failed, setFailed] = useState(false);
   const [loading, setLoading] = useState(true);
   const startedAtRef = useRef(0);
-  const uri = typeof source === "object" && source ? source.uri : undefined;
+  const normalizedSource = typeof source === "string" && source ? { uri: source } : source;
+  const uri = typeof normalizedSource === "object" && normalizedSource ? normalizedSource.uri : undefined;
 
-  if (failed || !source) {
+  if (failed || !normalizedSource) {
     return (
       <View style={[style, styles.fallback]}>
         <ImageIcon size={iconSize} color={colors.subtle} />
@@ -38,7 +40,7 @@ export default function SafeImage({ source, style, iconSize = 20, ...imageProps 
   return (
     <View style={[style, styles.wrap]}>
       <Image
-        source={source}
+        source={normalizedSource}
         style={StyleSheet.absoluteFill}
         transition={150}
         cachePolicy="memory-disk"
