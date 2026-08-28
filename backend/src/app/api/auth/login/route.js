@@ -61,10 +61,12 @@ async function handlePOST(request) {
     }
 
     if (!user.isActive) {
-      return error(
-        user.banned ? "This account has been banned" : "This account has been suspended",
-        403
-      );
+      const message = user.deletedAt
+        ? "This account has been deleted"
+        : user.banned
+        ? "This account has been banned"
+        : "This account has been suspended";
+      return error(message, 403);
     }
 
     const token = generateToken({ id: user._id.toString(), role: user.role });

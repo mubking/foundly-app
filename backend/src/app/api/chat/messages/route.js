@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
 
 import { connectDB } from "@/lib/db";
-import { getAuthUser, requireActiveUser, AuthError } from "@/lib/auth";
+import { requireActiveUser, AuthError } from "@/lib/auth";
 import { parsePagination } from "@/utils/pagination";
 import { sendMessageSchema } from "@/validations/chat.validation";
 import Conversation from "@/models/Conversation";
@@ -29,7 +29,7 @@ async function handleGET(request) {
   try {
     let user;
     try {
-      user = getAuthUser(request);
+      user = await requireActiveUser(request);
     } catch (err) {
       if (err instanceof AuthError) return error(err.message, err.status);
       throw err;

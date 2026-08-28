@@ -1,5 +1,5 @@
 import { connectDB } from "@/lib/db";
-import { getAuthUser, AuthError } from "@/lib/auth";
+import { requireActiveUser, AuthError } from "@/lib/auth";
 import { parsePagination } from "@/utils/pagination";
 import LostItem from "@/models/LostItem";
 import FoundItem from "@/models/FoundItem";
@@ -11,6 +11,7 @@ import "@/models/User";
 import { success, error } from "@/lib/response";
 
 function toClaimResult(claim) {
+  const claimantInactive = Boolean(claim.claimant && claim.claimant.isActive === false);
   return {
     id: claim._id,
     status: claim.status,
@@ -20,8 +21,8 @@ function toClaimResult(claim) {
     createdAt: claim.createdAt,
     claimant: {
       id: claim.claimant?._id,
-      firstName: claim.claimant?.firstName,
-      lastName: claim.claimant?.lastName,
+      firstName: claimantInactive ? "Deleted" : claim.claimant?.firstName,
+      lastName: claimantInactive ? "User" : claim.claimant?.lastName,
     },
     item: {
       id: claim.item?._id,
@@ -35,7 +36,7 @@ export async function GET(request) {
   try {
     let user;
     try {
-      user = getAuthUser(request);
+      user = await requireActiveUser(request);
     } catch (err) {
       if (err instanceof AuthError) return error(err.message, err.status);
       throw err;
@@ -63,7 +64,7 @@ export async function GET(request) {
 
     const [claims, total] = await Promise.all([
       Claim.find(filter)
-        .populate({ path: "claimant", select: "firstName lastName" })
+        .populate({ path: "claimant", select: "firstName lastName isActive" })
         .populate({ path: "item", select: "title" })
         .sort({ createdAt: -1 })
         .skip(skip)

@@ -1,5 +1,6 @@
 import LostItem from "@/models/LostItem";
 import FoundItem from "@/models/FoundItem";
+import User from "@/models/User";
 import Match from "@/models/Match";
 import { notify } from "@/lib/notifications";
 import { tokenize, jaccard } from "./duplicate-detection.service";
@@ -9,7 +10,6 @@ import { tokenize, jaccard } from "./duplicate-detection.service";
 // added to both LostItem and FoundItem, this keeps each trigger to one
 // indexed, capped query.
 const CANDIDATE_LIMIT = 200;
-const CANDIDATE_SELECT = "title description brand color keywords location images owner dateLost dateFound";
 
 // Sums to 100. Category isn't a weighted signal — it's a hard gate (see
 // fetchCandidates: only same-category items are ever scored against each
@@ -159,7 +159,18 @@ export function computeMatchScore({ lostItem, foundItem }) {
 }
 
 async function fetchCandidates(Model, category) {
-  return Model.find({ status: "open", category }).select(CANDIDATE_SELECT).sort({ createdAt: -1 }).limit(CANDIDATE_LIMIT).lean();
+  // Option B (account deactivation): only items whose owner is still active
+  // may become match candidates. Deactivated accounts' own listings are also
+  // flipped to status "removed" (see auth/delete-account/route.js), which
+  // this $match already excludes — the owner-active $lookup additionally
+  // covers admin-suspended accounts whose items stay "open".
+  return Model.aggregate([
+    { $match: { status: "open", category } },
+    { $sort: { createdAt: -1 } },
+    { $limit: CANDIDATE_LIMIT },
+    { $lookup: { from: User.collection.name, localField: "owner", foreignField: "_id", as: "ownerDoc" } },
+    { $match: { "ownerDoc.isActive": true } },
+  ]);
 }
 
 /**

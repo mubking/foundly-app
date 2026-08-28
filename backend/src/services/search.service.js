@@ -153,6 +153,17 @@ function buildTypePipeline(type, params) {
   if (q) stages.push({ $addFields: { score: { $meta: "textScore" } } });
   if (lat != null && lng != null) stages.push({ $addFields: { distanceKm: distanceExpr(lat, lng) } });
 
+  // Option B (account deactivation): listings owned by deactivated/suspended
+  // accounts must not surface in public search/feed/category/nearby results.
+  // The owner document is retained (soft-delete), so a $lookup on the owner's
+  // isActive flag keeps public results honest without deleting anything.
+  // Named distinctly from the `ownerDoc` alias the verifiedOnly filter below
+  // uses, so the two lookups don't clobber each other.
+  stages.push(
+    { $lookup: { from: User.collection.name, localField: "owner", foreignField: "_id", as: "ownerActiveDoc" } },
+    { $match: { "ownerActiveDoc.isActive": true } }
+  );
+
   return stages;
 }
 

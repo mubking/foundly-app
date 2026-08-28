@@ -31,6 +31,12 @@ export const changePasswordSchema = z.object({
   newPassword: z.string().min(8, "New password must be at least 8 characters"),
 });
 
+// `password` is only required for accounts that have one — social-only
+// (Google/Apple) accounts never set a password, so nothing to confirm with.
+export const deleteAccountSchema = z.object({
+  password: z.string().optional(),
+});
+
 export const googleAuthSchema = z.object({
   idToken: z.string().min(1, "Google ID token is required"),
 });

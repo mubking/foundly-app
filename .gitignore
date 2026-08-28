@@ -150,7 +150,14 @@ out/
 # Dependencies
 node_modules/
 
-# Environment
+# Environment — never commit secrets. Explicit entries for the known env
+# files (see also "# dotenv environment variable files" above); commit only
+# the matching *.example file.
 .env
 .env.local
 .env.*.local
+backend/.env.local
+socket/.env
+mobile/.env.local
+admin/.env.local
+!.env.example

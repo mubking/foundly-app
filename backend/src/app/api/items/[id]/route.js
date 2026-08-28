@@ -8,13 +8,15 @@ import FoundItem from "@/models/FoundItem";
 // in this module's scope before .populate("owner") can resolve it.
 import "@/models/User";
 import { success, error } from "@/lib/response";
-import { getAuthUser, AuthError } from "@/lib/auth";
+import { requireActiveUser, AuthError } from "@/lib/auth";
 import { updateLostItemSchema, updateFoundItemSchema } from "@/validations/update-item.validation";
 import { matchLostItem, matchFoundItem } from "@/services/matching.service";
 
 // Owner is populated with only these fields — never email, password, or
-// anything else from the User document.
-const OWNER_SELECT = "firstName lastName";
+// anything else from the User document. `isActive` is selected only so the
+// public GET can hide listings owned by deactivated accounts; it is
+// stripped from the response below.
+const OWNER_SELECT = "firstName lastName isActive";
 // Strip Mongoose's internal version key from the item document itself.
 const ITEM_SELECT = "-__v";
 
@@ -41,6 +43,16 @@ const { id } = await context.params;
       return error("Item not found", 404);
     }
 
+    // Option B (account deactivation): a listing owned by a deactivated
+    // account is treated as gone on the public detail endpoint — the
+    // document is retained, but it must not be served.
+    if (item.owner && item.owner.isActive === false) {
+      return error("Item not found", 404);
+    }
+    if (item.owner) {
+      delete item.owner.isActive;
+    }
+
     return success({
       ...item,
       type: lostItem ? "lost" : "found",
@@ -54,7 +66,7 @@ export async function PATCH(request, context) {
   try {
     let user;
     try {
-      user = getAuthUser(request);
+      user = await requireActiveUser(request);
     } catch (err) {
       if (err instanceof AuthError) return error(err.message, err.status);
       throw err;
@@ -142,7 +154,7 @@ export async function DELETE(request, context) {
   try {
     let user;
     try {
-      user = getAuthUser(request);
+      user = await requireActiveUser(request);
     } catch (err) {
       if (err instanceof AuthError) return error(err.message, err.status);
       throw err;

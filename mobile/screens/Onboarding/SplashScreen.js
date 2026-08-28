@@ -1,12 +1,10 @@
 import React, { useEffect, useRef } from "react";
-import { View, Text, StyleSheet, Animated, Easing } from "react-native";
+import { View, Text, Image, StyleSheet, Animated, Easing } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useNavigation } from "@react-navigation/native";
 
 import { useTheme } from "../../context/ThemeContext";
 import { useAuth } from "../../context/AuthContext";
-import TargetIcon from "../../components/common/TargetIcon";
-import GlassIconBadge from "../../components/common/GlassIconBadge";
 import DecorativeOrbs from "../../components/common/DecorativeOrbs";
 import LoadingDots from "../../components/Loading/LoadingDots";
 
@@ -83,9 +81,12 @@ export default function SplashScreen() {
           },
         ]}
       >
-        <GlassIconBadge size={88} radius={24}>
-          <TargetIcon size={42} color="#fff" strokeWidth={1.5} />
-        </GlassIconBadge>
+        <Image
+          source={require("../../assets/splash-icon.png")}
+          style={styles.mark}
+          resizeMode="contain"
+          accessibilityLabel="Reunio logo"
+        />
 
         <View style={styles.textBlock}>
           <Text style={styles.title}>Reunio</Text>
@@ -114,6 +115,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 28,
+  },
+  mark: {
+    width: 88,
+    height: 88,
   },
   textBlock: {
     alignItems: "center",

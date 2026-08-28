@@ -6,9 +6,17 @@ import Claim from "@/models/Claim";
 // Shared between GET /api/chat/conversations (list) and
 // GET /api/chat/conversations/:id (single) so both render a conversation
 // identically instead of each maintaining its own field list/mapper.
-export const PARTICIPANT_SELECT = "firstName lastName avatar isVerified";
+// `isActive` is read by toConversationResult so a deactivated participant
+// is represented as "Deleted User" without an avatar.
+export const PARTICIPANT_SELECT = "firstName lastName avatar isVerified isActive";
 export const LAST_MESSAGE_SELECT = "text sender createdAt read";
-export const ITEM_SELECT = "title";
+// `images` so a conversation can render its item's real photo (first
+// upload) everywhere a thread previews the item it's about — both chat
+// endpoints map it onto `item.image` via toConversationResult below. Both
+// LostItem and FoundItem store Cloudinary URLs in `images: string[]` (may
+// be empty); callers treat a missing/null image as "no image" and show
+// their neutral placeholder rather than inventing a photo.
+export const ITEM_SELECT = "title images";
 
 /**
  * Maps one populated, `.lean()`ed Conversation document into the shape
@@ -22,16 +30,20 @@ export const ITEM_SELECT = "title";
  */
 export function toConversationResult(conversation, currentUserId, unreadCounts) {
   const other = conversation.participants.find((p) => p._id.toString() !== currentUserId);
+  // Option B (account deactivation): a deactivated participant still has a
+  // retained document, but their identity must not be surfaced — show a
+  // neutral "Deleted User" with no avatar instead.
+  const otherInactive = Boolean(other && other.isActive === false);
 
   return {
     id: conversation._id,
     participant: other
       ? {
           id: other._id,
-          firstName: other.firstName,
-          lastName: other.lastName,
-          avatar: other.avatar,
-          isVerified: other.isVerified || false,
+          firstName: otherInactive ? "Deleted" : other.firstName,
+          lastName: otherInactive ? "User" : other.lastName,
+          avatar: otherInactive ? null : other.avatar,
+          isVerified: otherInactive ? false : other.isVerified || false,
         }
       : null,
     item: conversation.item
@@ -39,6 +51,10 @@ export function toConversationResult(conversation, currentUserId, unreadCounts) 
           id: conversation.item._id,
           title: conversation.item.title,
           type: conversation.itemType === "LostItem" ? "lost" : "found",
+          // First upload, so a chat thread can show the item's real photo.
+          // Null when the listing genuinely has no image — callers keep
+          // their neutral placeholder in that case.
+          image: conversation.item.images?.[0] ?? null,
         }
       : null,
     lastMessage: conversation.lastMessage

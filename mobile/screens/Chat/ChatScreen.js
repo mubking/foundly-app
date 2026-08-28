@@ -1,5 +1,5 @@
 import React, { useCallback, useRef, useState, useMemo } from "react";
-import { View, Text, FlatList, Pressable, StyleSheet } from "react-native";
+import { View, Text, FlatList, Pressable, Alert, StyleSheet } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFocusEffect, useNavigation, useRoute } from "@react-navigation/native";
 
@@ -10,6 +10,7 @@ import { useConversationDetails } from "../../hooks/useConversationDetails";
 import { getInitials } from "../../utils/initials";
 import { CLAIM_STATUS_VARIANT, CLAIM_STATUS_LABEL } from "../../constants/claimStatus";
 import { setActiveConversationId } from "../../services/activeConversation";
+import { blockUser } from "../../services/blocks";
 
 import ArrowLeftIcon from "../../components/common/ArrowLeftIcon";
 import Avatar from "../../components/Avatar/Avatar";
@@ -23,6 +24,8 @@ import StatusState from "../../components/common/StatusState";
 import ChatInputBar from "../../components/common/ChatInputBar";
 import ImageViewerModal from "../../components/common/ImageViewerModal";
 import KeyboardAvoidingScreen from "../../components/common/KeyboardAvoidingScreen";
+import MoreVerticalIcon from "../../components/common/MoreVerticalIcon";
+import ShieldIcon from "../../components/common/ShieldIcon";
 
 export default function ChatScreen() {
   const colors = useTheme();
@@ -38,7 +41,7 @@ export default function ChatScreen() {
     itemId: routeItemId,
     itemType: routeItemType,
     itemTitle: routeItemTitle,
-    itemImage,
+    itemImage: routeItemImage,
     itemStatus,
     initialText,
   } = route.params || {};
@@ -54,6 +57,20 @@ export default function ChatScreen() {
   const itemId = details?.item?.id || routeItemId;
   const itemType = details?.item?.type || routeItemType;
   const itemTitle = details?.item?.title || routeItemTitle;
+  // The item's real photo: the backend now populates `conversation.item.image`
+  // (first Cloudinary upload — see backend/src/services/conversation.service.js),
+  // so `details` is authoritative whenever a conversationId exists (opened
+  // from the inbox, or deep-linked from a notification). Only a brand-new
+  // conversation (recipientId, no conversationId yet — nothing to fetch)
+  // relies on the raw URL Item Details passed through. Normalized to
+  // `{ uri }` so SafeImage always receives the same source shape; null when
+  // the item genuinely has no image, which SafeImage renders as its own
+  // neutral "no image" icon rather than inventing a stock photo.
+  const itemImage = details?.item?.image
+    ? details.item.image
+    : typeof routeItemImage === "string" && routeItemImage
+      ? { uri: routeItemImage }
+      : null;
   const claim = details?.claim || null;
 
   // Only ever read once, on mount — a starting point the sender can edit
@@ -61,6 +78,8 @@ export default function ChatScreen() {
   const [text, setText] = useState(initialText || "");
   const [evidenceVisible, setEvidenceVisible] = useState(false);
   const [sendError, setSendError] = useState(null);
+  const [blocked, setBlocked] = useState(false);
+  const [blocking, setBlocking] = useState(false);
   const scrollRef = useRef(null);
 
   const {
@@ -113,6 +132,38 @@ export default function ChatScreen() {
     },
     [retryMessage]
   );
+
+  // Safety action (chat section of the production audit): stops this user
+  // from messaging back or starting a new conversation, in either
+  // direction — see backend/src/services/block.service.js's
+  // isBlockedEitherDirection, which every send already checks. Local-only
+  // `blocked` flag: we just performed the action ourselves, so there's no
+  // need to refetch anything to know it's in effect for the rest of this
+  // session. Managing/undoing it lives in Settings > Blocked Users.
+  const confirmBlock = async () => {
+    if (!participant?.id || blocking) return;
+    setBlocking(true);
+    try {
+      await blockUser(participant.id);
+      setBlocked(true);
+      setSendError(null);
+    } catch (err) {
+      setSendError(err.message || "Couldn't block this user. Please try again.");
+    } finally {
+      setBlocking(false);
+    }
+  };
+
+  const handleBlockPress = () => {
+    Alert.alert(
+      `Block ${name}?`,
+      "They won't be able to message you, and you won't be able to message them. You can undo this later from Settings > Blocked Users.",
+      [
+        { text: "Cancel", style: "cancel" },
+        { text: "Block", style: "destructive", onPress: confirmBlock },
+      ]
+    );
+  };
 
   const renderMessage = useCallback(
     ({ item: msg }) =>
@@ -170,6 +221,17 @@ export default function ChatScreen() {
               </View>
             ) : null}
           </View>
+
+          {!blocked && participant?.id ? (
+            <Pressable
+              style={styles.headerIconButton}
+              onPress={handleBlockPress}
+              accessibilityRole="button"
+              accessibilityLabel={`Block ${name}`}
+            >
+              <MoreVerticalIcon size={18} color={colors.text} />
+            </Pressable>
+          ) : null}
         </View>
 
         {claim ? (
@@ -185,14 +247,15 @@ export default function ChatScreen() {
             style={styles.contextBar}
           />
         ) : itemTitle ? (
-          // From Item Details, itemImage is the item's real photo (passed
-          // directly, already loaded on that screen). From the inbox, only
-          // conversation.item's {id, title, type} exist — GET
-          // /api/chat/conversations doesn't populate an image for it — so
-          // this falls back to `null`, which SafeImage renders as its own
-          // neutral "no image" icon rather than inventing a stock photo.
+          // `itemImage` above is the item's real photo: passed through
+          // directly when arriving from Item Details, or resolved from the
+          // conversation details fetched by useConversationDetails (the
+          // backend populates conversation.item.image for both lost and
+          // found items — see backend/src/services/conversation.service.js).
+          // Only when the item has no usable image does SafeImage render
+          // its neutral "no image" icon rather than inventing a stock photo.
           <ChatItemContext
-            image={itemImage || null}
+            image={itemImage}
             title={itemTitle}
             status={itemStatus}
             onPress={itemId ? () => navigation.navigate("ItemDetails", { id: itemId }) : undefined}
@@ -223,14 +286,23 @@ export default function ChatScreen() {
         )}
 
         {sendError ? <Text style={styles.sendErrorText}>{sendError}</Text> : null}
-        <ChatInputBar
-          value={text}
-          onChangeText={(value) => {
-            setText(value);
-            if (sendError) setSendError(null);
-          }}
-          onSend={handleSend}
-        />
+        {blocked ? (
+          <View style={styles.blockedNotice}>
+            <ShieldIcon size={16} color={colors.textLight} />
+            <Text style={styles.blockedNoticeText}>
+              You've blocked {name}. They can't message you, and you can't message them.
+            </Text>
+          </View>
+        ) : (
+          <ChatInputBar
+            value={text}
+            onChangeText={(value) => {
+              setText(value);
+              if (sendError) setSendError(null);
+            }}
+            onSend={handleSend}
+          />
+        )}
       </KeyboardAvoidingScreen>
 
       {claim?.proofImage ? (
@@ -325,5 +397,21 @@ const makeStyles = (colors) => StyleSheet.create({
     textAlign: "center",
     paddingHorizontal: 16,
     paddingBottom: 4,
+  },
+  blockedNotice: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginHorizontal: 16,
+    marginBottom: 16,
+    padding: 14,
+    borderRadius: 16,
+    backgroundColor: colors.surface,
+  },
+  blockedNoticeText: {
+    flex: 1,
+    fontSize: 12.5,
+    lineHeight: 18,
+    color: colors.textLight,
   },
 });

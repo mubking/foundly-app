@@ -1,7 +1,7 @@
 import bcrypt from "bcryptjs";
 
 import { connectDB } from "@/lib/db";
-import { getAuthUser, AuthError } from "@/lib/auth";
+import { requireActiveUser, AuthError } from "@/lib/auth";
 import User from "@/models/User";
 import { changePasswordSchema } from "@/validations/auth.validation";
 import { success, error } from "@/lib/response";
@@ -16,7 +16,7 @@ export async function PATCH(request) {
   try {
     let authUser;
     try {
-      authUser = getAuthUser(request);
+      authUser = await requireActiveUser(request);
     } catch (err) {
       if (err instanceof AuthError) return error(err.message, err.status);
       throw err;

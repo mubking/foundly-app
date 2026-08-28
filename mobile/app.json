@@ -9,7 +9,7 @@
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/splash-icon.png",
+      "image": "./assets/splash-logo.png",
       "resizeMode": "contain",
       "backgroundColor": "#F8F9FC"
     },
@@ -29,7 +29,12 @@
         "backgroundColor": "#142D5C"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.foundly.app"
+      "package": "com.foundly.app",
+      "blockedPermissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -54,6 +59,14 @@
         }
       ],
       "expo-apple-authentication",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Reunio needs access to your photos so you can attach images to lost and found reports and claims.",
+          "cameraPermission": "Reunio uses your camera so you can photograph lost or found items and verify claims.",
+          "microphonePermission": false
+        }
+      ],
       [
         "@react-native-google-signin/google-signin",
         {

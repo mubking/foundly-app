@@ -61,12 +61,14 @@ export async function requireActiveUser(request) {
   const user = getAuthUser(request);
 
   await connectDB();
-  const account = await User.findById(user.id).select("isActive banned").lean();
+  const account = await User.findById(user.id).select("isActive banned deletedAt").lean();
   if (!account || !account.isActive) {
-    throw new AuthError(
-      account?.banned ? "This account has been banned" : "This account has been suspended",
-      403
-    );
+    const message = account?.deletedAt
+      ? "This account has been deleted"
+      : account?.banned
+      ? "This account has been banned"
+      : "This account has been suspended";
+    throw new AuthError(message, 403);
   }
 
   return user;

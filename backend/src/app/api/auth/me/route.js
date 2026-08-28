@@ -1,6 +1,6 @@
 import { connectDB } from "@/lib/db";
 import User from "@/models/User";
-import { getAuthUser, AuthError } from "@/lib/auth";
+import { requireActiveUser, AuthError } from "@/lib/auth";
 import { success, error } from "@/lib/response";
 import { toPublicUser } from "@/lib/serializers";
 
@@ -8,7 +8,7 @@ export async function GET(request) {
   try {
     let authUser;
     try {
-      authUser = getAuthUser(request);
+      authUser = await requireActiveUser(request);
     } catch (err) {
       if (err instanceof AuthError) return error(err.message, err.status);
       throw err;

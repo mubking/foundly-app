@@ -2,6 +2,7 @@ import React, { useState, useMemo, useRef } from "react";
 import { View, Text, ScrollView, ActivityIndicator, StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
+import Constants from "expo-constants";
 
 import { useTheme, useThemePreference } from "../../context/ThemeContext";
 import { useProfile } from "../../hooks/useProfile";
@@ -162,10 +163,25 @@ export default function SettingsScreen() {
             right={null}
           />
           <SettingsRow
+            icon={<ShieldIcon size={18} color={colors.textLight} />}
+            label="Blocked Users"
+            onPress={() => navigation.navigate("BlockedUsers")}
+          />
+          <SettingsRow
             icon={<FileTextIcon size={18} color={colors.textLight} />}
             label="Data & Privacy"
             subtitle="Coming soon"
             right={null}
+          />
+          <SettingsRow
+            icon={<FileTextIcon size={18} color={colors.textLight} />}
+            label="Privacy Policy"
+            onPress={() => navigation.navigate("Legal", { doc: "privacy" })}
+          />
+          <SettingsRow
+            icon={<FileTextIcon size={18} color={colors.textLight} />}
+            label="Terms of Service"
+            onPress={() => navigation.navigate("Legal", { doc: "terms" })}
             last
           />
         </SettingsSection>
@@ -184,7 +200,7 @@ export default function SettingsScreen() {
           <SettingsRow
             icon={<AwardIcon size={18} color={colors.textLight} />}
             label="Upgrade to Pro"
-            subtitle="Unlock advanced features"
+            subtitle="Coming soon"
             right={null}
           />
           <SettingsRow
@@ -196,7 +212,7 @@ export default function SettingsScreen() {
           <SettingsRow
             icon={<InfoIcon size={18} color={colors.textLight} />}
             label="About Reunio"
-            subtitle="Version 2.4.1"
+            subtitle={`Version ${Constants.expoConfig?.version || "1.0.0"}`}
             right={null}
             last
           />
@@ -212,10 +228,10 @@ export default function SettingsScreen() {
           />
           <SettingsRow
             icon={<Trash2Icon size={18} color={colors.danger} />}
-            label="Delete Account"
-            subtitle="Coming soon"
+            label="Deactivate Account"
             danger
             right={null}
+            onPress={() => navigation.navigate("DeleteAccount")}
             last
           />
         </SettingsSection>

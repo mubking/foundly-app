@@ -1,5 +1,5 @@
 import { connectDB } from "@/lib/db";
-import { getAuthUser, AuthError } from "@/lib/auth";
+import { requireActiveUser, AuthError } from "@/lib/auth";
 import { parsePagination } from "@/utils/pagination";
 import FoundItem from "@/models/FoundItem";
 import { success, error } from "@/lib/response";
@@ -12,7 +12,7 @@ export async function GET(request) {
   try {
     let user;
     try {
-      user = getAuthUser(request);
+      user = await requireActiveUser(request);
     } catch (err) {
       if (err instanceof AuthError) return error(err.message, err.status);
       throw err;

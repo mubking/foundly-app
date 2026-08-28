@@ -1,5 +1,6 @@
 import React, { useMemo } from "react";
 import { View, Text, Pressable, StyleSheet } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useTheme } from "../../context/ThemeContext";
 import { useUnreadConversationsCount } from "../../hooks/useUnreadConversationsCount";
@@ -20,6 +21,15 @@ const NAV_ITEMS = [
 export default function BottomNav({ active, onNavigate }) {
   const colors = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
+  // Android is edge-to-edge (`edgeToEdgeEnabled: true`), so the app draws
+  // behind the system navigation/gesture area. The screen containers only
+  // apply the *top* inset (they render this bar themselves rather than a
+  // bottom tab navigator), so this bar — not its parent — must account for
+  // the bottom inset, or its icons/labels land underneath the system nav
+  // bar. `insets.bottom` is the real per-device inset (gesture pill or
+  // 3-button nav), layered on top of the design's own 16px bar padding, so
+  // devices without a bottom inset render exactly as designed.
+  const insets = useSafeAreaInsets();
   // Count of conversations with unread messages, not total unread messages
   // — matches ConversationRow's own per-row badge, which is also a message
   // count, not a conversation count, so the two never look inconsistent
@@ -27,7 +37,7 @@ export default function BottomNav({ active, onNavigate }) {
   const unreadConversations = useUnreadConversationsCount();
 
   return (
-    <View style={styles.bar}>
+    <View style={[styles.bar, { paddingBottom: 16 + insets.bottom }]}>
       {NAV_ITEMS.map(({ id, icon: Icon, label }) => {
         const isActive = active === id;
         const showBadge = id === "Chat" && unreadConversations > 0;

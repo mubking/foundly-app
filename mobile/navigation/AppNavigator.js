@@ -8,6 +8,7 @@ import {
 import RootNavigator from "./RootNavigator";
 import { navigationRef } from "./navigationRef";
 import { AuthProvider } from "../context/AuthContext";
+import { NotificationsProvider } from "../context/NotificationsContext";
 import { ThemeProvider, useThemePreference } from "../context/ThemeContext";
 import NotificationToastHost from "../components/common/NotificationToastHost";
 import PushNotificationHost from "../components/common/PushNotificationHost";
@@ -53,7 +54,9 @@ function NavigationShell() {
       linking={linking}
     >
       <StatusBar style={mode === "dark" ? "light" : "dark"} />
-      <RootNavigator />
+      <NotificationsProvider>
+        <RootNavigator />
+      </NotificationsProvider>
       <NotificationToastHost />
       <PushNotificationHost />
       <OfflineBanner />

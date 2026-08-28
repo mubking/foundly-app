@@ -37,6 +37,10 @@ function toParticipantDisplay(raw) {
  * listing this conversation started from, if any (the backend only started
  * persisting this once backend/src/models/Conversation.js grew the field —
  * older conversations, and any not started from an item, have `item: null`).
+ * `item.image` is the first Cloudinary upload (backend maps
+ * item.images[0], see backend/src/services/conversation.service.js), null
+ * when the listing has no usable image — the chat thread's item preview
+ * falls back to SafeImage's neutral placeholder in that case.
  *
  * @param {object} raw
  * @returns {object} `{id, participant, item, lastMessage, unreadCount, updatedAt, time}`
@@ -45,7 +49,14 @@ function toConversationDisplay(raw) {
   return {
     id: raw.id,
     participant: toParticipantDisplay(raw.participant),
-    item: raw.item ? { id: raw.item.id, title: raw.item.title, type: raw.item.type } : null,
+    item: raw.item
+      ? {
+          id: raw.item.id,
+          title: raw.item.title,
+          type: raw.item.type,
+          image: raw.item.image ? { uri: optimizeImageUrl(raw.item.image, "thumb") } : null,
+        }
+      : null,
     lastMessage: raw.lastMessage
       ? { id: raw.lastMessage.id, text: raw.lastMessage.text, sender: raw.lastMessage.sender }
       : null,

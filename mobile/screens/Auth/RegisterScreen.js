@@ -210,8 +210,14 @@ export default function RegisterScreen() {
             </Text>
 
             <Text style={styles.legalText}>
-              By continuing you agree to our <Text style={styles.legalLink}>Terms</Text> and{" "}
-              <Text style={styles.legalLink}>Privacy Policy</Text>
+              By continuing you agree to our{" "}
+              <Text style={styles.legalLink} onPress={() => navigation.navigate("Legal", { doc: "terms" })}>
+                Terms
+              </Text>{" "}
+              and{" "}
+              <Text style={styles.legalLink} onPress={() => navigation.navigate("Legal", { doc: "privacy" })}>
+                Privacy Policy
+              </Text>
             </Text>
           </View>
         </ScrollView>

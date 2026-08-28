@@ -1,6 +1,8 @@
 import mongoose from "mongoose";
 
 import { userRoom } from "../rooms/userRooms.js";
+import { connectDB } from "../config/db.js";
+import { UserLookup } from "../middleware/authenticateSocket.js";
 import { logger } from "../utils/logger.js";
 
 const NOTIFICATION_NEW = "notification:new";
@@ -69,9 +71,22 @@ export function startNotificationWatcher(io) {
   function open() {
     stream = NotificationLookup.watch([{ $match: { operationType: "insert" } }]);
 
-    stream.on("change", (change) => {
+    stream.on("change", async (change) => {
       const doc = change.fullDocument;
       if (!doc?.recipient) return;
+
+      // Option B (account deactivation): never deliver a real-time event to
+      // a deactivated/suspended recipient, even if their socket is still
+      // connected (the handshake check in authenticateSocket.js blocks new
+      // connections; this closes the already-connected window).
+      try {
+        await connectDB();
+        const recipient = await UserLookup.findById(doc.recipient).select("isActive").lean();
+        if (!recipient || recipient.isActive === false) return;
+      } catch (err) {
+        logger.error("Notification recipient activity check error:", err.message);
+        return;
+      }
 
       io.to(userRoom(doc.recipient.toString())).emit(NOTIFICATION_NEW, toNotificationPayload(doc));
     });

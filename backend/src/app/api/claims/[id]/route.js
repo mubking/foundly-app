@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
 
 import { connectDB } from "@/lib/db";
-import { getAuthUser, AuthError } from "@/lib/auth";
+import { requireActiveUser, AuthError } from "@/lib/auth";
 import Claim from "@/models/Claim";
 // Not used directly, but Claim.claimant only stores a ref: "User" string —
 // Mongoose needs the actual User schema registered in this module's scope
@@ -19,7 +19,7 @@ export async function GET(request, context) {
   try {
     let user;
     try {
-      user = getAuthUser(request);
+      user = await requireActiveUser(request);
     } catch (err) {
       if (err instanceof AuthError) return error(err.message, err.status);
       throw err;
@@ -33,7 +33,7 @@ export async function GET(request, context) {
     await connectDB();
 
     const claim = await Claim.findById(id)
-      .populate({ path: "claimant", select: "firstName lastName avatar isVerified" })
+      .populate({ path: "claimant", select: "firstName lastName avatar isVerified isActive" })
       .populate({ path: "item", select: "title images location dateLost dateFound status reward owner" })
       .lean();
 
@@ -47,6 +47,11 @@ export async function GET(request, context) {
       return error("You are not allowed to view this claim", 403);
     }
 
+    // Option B (account deactivation): a deactivated claimant still has a
+    // retained document, but their identity must not be surfaced — show a
+    // neutral "Deleted User" with no avatar.
+    const claimantInactive = Boolean(claim.claimant && claim.claimant.isActive === false);
+
     return success({
       id: claim._id,
       status: claim.status,
@@ -56,10 +61,10 @@ export async function GET(request, context) {
       createdAt: claim.createdAt,
       claimant: {
         id: claim.claimant?._id,
-        firstName: claim.claimant?.firstName,
-        lastName: claim.claimant?.lastName,
-        avatar: claim.claimant?.avatar ?? null,
-        isVerified: claim.claimant?.isVerified ?? false,
+        firstName: claimantInactive ? "Deleted" : claim.claimant?.firstName,
+        lastName: claimantInactive ? "User" : claim.claimant?.lastName,
+        avatar: claimantInactive ? null : claim.claimant?.avatar ?? null,
+        isVerified: claimantInactive ? false : claim.claimant?.isVerified ?? false,
       },
       item: {
         id: claim.item._id,

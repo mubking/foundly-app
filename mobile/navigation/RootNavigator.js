@@ -23,10 +23,13 @@ import ChatScreen from "../screens/Chat/ChatScreen";
 import ProfileScreen from "../screens/Profile/ProfileScreen";
 import EditProfileScreen from "../screens/Profile/EditProfileScreen";
 import ChangePasswordScreen from "../screens/Profile/ChangePasswordScreen";
+import DeleteAccountScreen from "../screens/Profile/DeleteAccountScreen";
 import MyLostScreen from "../screens/Lost/MyLostScreen";
 import MyFoundScreen from "../screens/Found/MyFoundScreen";
 import RewardsScreen from "../screens/Rewards/RewardsScreen";
 import SettingsScreen from "../screens/Settings/SettingsScreen";
+import LegalScreen from "../screens/Legal/LegalScreen";
+import BlockedUsersScreen from "../screens/Settings/BlockedUsersScreen";
 import MatchesScreen from "../screens/Matches/MatchesScreen";
 
 const Stack = createNativeStackNavigator();
@@ -147,6 +150,21 @@ export default function RootNavigator() {
       <Stack.Screen
         name="ChangePassword"
         component={ChangePasswordScreen}
+      />
+
+      <Stack.Screen
+        name="DeleteAccount"
+        component={DeleteAccountScreen}
+      />
+
+      <Stack.Screen
+        name="Legal"
+        component={LegalScreen}
+      />
+
+      <Stack.Screen
+        name="BlockedUsers"
+        component={BlockedUsersScreen}
       />
 
       <Stack.Screen

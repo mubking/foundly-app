@@ -89,6 +89,14 @@ const userSchema = new Schema(
       type: Boolean,
       default: false,
     },
+    // Set by the user-initiated DELETE /api/auth/delete-account flow.
+    // Soft-delete only (isActive also flips false, blocking login/API
+    // access via requireActiveUser) — the document itself is kept so
+    // existing items/claims/messages the account authored don't dangle.
+    deletedAt: {
+      type: Date,
+      default: null,
+    },
     // Expo push tokens for this user's registered devices. A plain array of
     // token strings — enough to support multiple devices (add on
     // register/refresh, $addToSet dedupes) and per-device removal (logout

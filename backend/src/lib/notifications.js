@@ -70,8 +70,13 @@ export async function notify(payload) {
  */
 async function sendEmailIfOptedIn(notification) {
   try {
-    const recipient = await User.findById(notification.recipient).select("email emailNotifications").lean();
-    if (!recipient || recipient.emailNotifications === false) return;
+    const recipient = await User.findById(notification.recipient)
+      .select("email emailNotifications isActive")
+      .lean();
+    // Option B (account deactivation): never email a deactivated/suspended
+    // account — their data is retained, but processing stops. (`isActive`
+    // is already flipped false by delete-account and admin moderation.)
+    if (!recipient || recipient.emailNotifications === false || recipient.isActive === false) return;
 
     await sendNotificationEmail(recipient.email, {
       title: notification.title,

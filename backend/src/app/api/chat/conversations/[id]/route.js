@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
 
 import { connectDB } from "@/lib/db";
-import { getAuthUser, AuthError } from "@/lib/auth";
+import { requireActiveUser, AuthError } from "@/lib/auth";
 import Conversation from "@/models/Conversation";
 // Not used directly, but Conversation.participants/lastMessage/item only
 // store refs — Mongoose needs the User/Message/LostItem/FoundItem schemas
@@ -29,7 +29,7 @@ export async function GET(request, context) {
   try {
     let user;
     try {
-      user = getAuthUser(request);
+      user = await requireActiveUser(request);
     } catch (err) {
       if (err instanceof AuthError) return error(err.message, err.status);
       throw err;

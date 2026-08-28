@@ -7,11 +7,13 @@ import { connectDB } from "../config/db.js";
 // the same "users" collection but doesn't need the full schema (password,
 // validators, etc.) since this service only ever reads a couple of fields
 // off an existing document — it never creates or edits users.
+// Exported so services/notificationService.js can reuse the same model for
+// its own recipient-activity check.
 const userLookupSchema = new mongoose.Schema(
-  { email: String, role: String },
+  { email: String, role: String, isActive: Boolean },
   { collection: "users" }
 );
-const UserLookup =
+export const UserLookup =
   mongoose.models.UserLookup || mongoose.model("UserLookup", userLookupSchema);
 
 /**
@@ -39,9 +41,16 @@ export async function authenticateSocket(socket, next) {
     }
 
     await connectDB();
-    const user = await UserLookup.findById(payload.id).select("email role").lean();
+    const user = await UserLookup.findById(payload.id).select("email role isActive").lean();
     if (!user) {
       return next(new Error("Authentication error: user not found"));
+    }
+    // Option B (account deactivation): reject handshakes for deactivated or
+    // suspended accounts so they can't (re)connect and keep receiving
+    // real-time events (the notification watcher additionally re-checks the
+    // recipient per event for already-connected sockets).
+    if (user.isActive === false) {
+      return next(new Error("Authentication error: account is not active"));
     }
 
     socket.user = {

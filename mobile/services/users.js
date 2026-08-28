@@ -71,3 +71,18 @@ export async function updateProfile(changes) {
 export function changePassword({ currentPassword, newPassword }) {
   return api.patch("/auth/change-password", { currentPassword, newPassword });
 }
+
+/**
+ * Wraps `DELETE /api/auth/delete-account`. Requires auth. `password` is
+ * only required for accounts that have one (social-only accounts don't) —
+ * the backend enforces that, this just forwards whatever was collected.
+ * Soft-deletes the account server-side; callers must clear the local
+ * session (see hooks/useDeleteAccount.js) since the token is now rejected.
+ *
+ * @param {string} [password]
+ * @returns {Promise<void>}
+ * @throws {ApiError}
+ */
+export function deleteAccount(password) {
+  return api.delete("/auth/delete-account", { body: password ? { password } : {} });
+}

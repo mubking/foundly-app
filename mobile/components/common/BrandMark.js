@@ -1,17 +1,19 @@
 import React, { useMemo } from "react";
-import { View, Text, StyleSheet } from "react-native";
+import { View, Text, Image, StyleSheet } from "react-native";
 
 import { useTheme } from "../../context/ThemeContext";
-import TargetIcon from "./TargetIcon";
 
 export default function BrandMark({ style }) {
   const colors = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
     <View style={[styles.row, style]}>
-      <View style={styles.badge}>
-        <TargetIcon size={17} color="#fff" strokeWidth={1.8} />
-      </View>
+      <Image
+        source={require("../../assets/splash-icon.png")}
+        style={styles.mark}
+        resizeMode="contain"
+        accessibilityLabel="Reunio logo"
+      />
       <Text style={styles.text}>Reunio</Text>
     </View>
   );
@@ -23,13 +25,9 @@ const makeStyles = (colors) => StyleSheet.create({
     alignItems: "center",
     gap: 10,
   },
-  badge: {
-    width: 32,
-    height: 32,
-    borderRadius: 12,
-    backgroundColor: colors.primary,
-    alignItems: "center",
-    justifyContent: "center",
+  mark: {
+    width: 44,
+    height: 44,
   },
   text: {
     fontSize: 18,

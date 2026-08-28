@@ -79,6 +79,15 @@ async function handlePOST(request) {
       return error("You cannot claim your own item", 400);
     }
 
+    // Option B (account deactivation): an item whose owner has deactivated
+    // their account is no longer claimable — the owner can't review a claim,
+    // so it would sit forever. The item is also hidden from public
+    // visibility, so this treats it as gone (same 404 as items/[id]).
+    const itemOwner = await User.findById(item.owner).select("isActive").lean();
+    if (itemOwner && itemOwner.isActive === false) {
+      return error("Item not found", 404);
+    }
+
     // Explicit pre-check for a clean 409 message. The unique index on
     // Claim (claimant, item) is the real guarantee — this just avoids
     // surfacing a raw duplicate-key error in the common case.

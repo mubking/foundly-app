@@ -137,6 +137,17 @@ export async function createMessage({
     if (otherParticipantId && (await isBlockedEitherDirection(senderId, otherParticipantId))) {
       throw new MessageServiceError("You can't message this user", 403);
     }
+
+    // Option B (account deactivation): a deactivated/suspended recipient
+    // can no longer receive new messages. History stays intact and readable,
+    // but sending stops — checked before Message.create so no Message
+    // document, notification, email, or socket emit happens.
+    if (otherParticipantId) {
+      const otherParticipant = await User.findById(otherParticipantId).select("isActive").lean();
+      if (!otherParticipant || otherParticipant.isActive === false) {
+        throw new MessageServiceError("You can't message this user", 403);
+      }
+    }
   } else {
     if (!mongoose.Types.ObjectId.isValid(recipientId)) {
       throw new MessageServiceError("Invalid recipient ID", 400);
@@ -146,9 +157,14 @@ export async function createMessage({
       throw new MessageServiceError("You cannot start a conversation with yourself", 400);
     }
 
-    const recipient = await User.findById(recipientId).select("_id").lean();
+    const recipient = await User.findById(recipientId).select("_id isActive").lean();
     if (!recipient) {
       throw new MessageServiceError("Recipient not found", 404);
+    }
+    // Option B (account deactivation): you cannot start a new conversation
+    // with a deactivated/suspended account.
+    if (recipient.isActive === false) {
+      throw new MessageServiceError("You can't message this user", 403);
     }
 
     // Checked before findOrCreateConversation so a blocked pair never gets
@@ -192,8 +208,15 @@ export async function createMessage({
   // paths.
   const messageRecipientId = conversation.participants.map(String).find((id) => id !== senderId);
   if (messageRecipientId) {
-    const sender = await User.findById(senderId).select("firstName lastName avatar").lean();
-    const senderName = sender ? `${sender.firstName} ${sender.lastName}`.trim() : "Someone";
+    const sender = await User.findById(senderId).select("firstName lastName avatar isActive").lean();
+    // Option B (account deactivation): a deactivated sender's identity is
+    // never snapshotted onto notifications — show "Deleted User" instead.
+    const senderInactive = Boolean(sender && sender.isActive === false);
+    const senderName = !sender
+      ? "Someone"
+      : senderInactive
+      ? "Deleted User"
+      : `${sender.firstName} ${sender.lastName}`.trim();
 
     // Snapshotted onto the Notification itself (senderAvatar/itemTitle) so
     // the notification list/toast/push payload can render richly without a
@@ -229,7 +252,7 @@ export async function createMessage({
       type: isClaimReply ? "claim_reply" : "new_message",
       targetType: "Conversation",
       targetId: conversation._id,
-      senderAvatar: sender?.avatar || null,
+      senderAvatar: senderInactive ? null : sender?.avatar || null,
       itemTitle,
     });
   }
