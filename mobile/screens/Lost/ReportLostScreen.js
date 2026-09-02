@@ -1,6 +1,6 @@
 import React, { useMemo } from "react";
 import { View, ScrollView, StyleSheet, Text } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useTheme } from "../../context/ThemeContext";
 import { useReportLostForm, TOTAL_STEPS } from "../../hooks/useReportLostForm";
@@ -20,6 +20,7 @@ const STEP_LABELS = ["Photos & Details", "Location & Time", "Review & Post"];
 export default function ReportLostScreen() {
   const colors = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
+  const insets = useSafeAreaInsets();
   const form = useReportLostForm();
 
   return (
@@ -40,7 +41,7 @@ export default function ReportLostScreen() {
           {form.step === 3 ? <LostReviewStep form={form} /> : null}
         </ScrollView>
 
-        <View style={styles.footer}>
+        <View style={[styles.footer, { paddingBottom: 16 + insets.bottom }]}>
           {form.submitError ? <Text style={styles.submitErrorText}>{form.submitError}</Text> : null}
           {form.step < TOTAL_STEPS ? (
             <Button fullWidth onPress={form.handlePrimaryAction} iconRight={<ArrowRightIcon size={18} color="#fff" />}>

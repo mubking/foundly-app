@@ -19,7 +19,7 @@ const SOCKET_ACK_TIMEOUT_MS = 15000;
  * hooks/useConversationDetails.js for the fix to that.
  *
  * @param {object|null} raw
- * @returns {object|null} `{id, firstName, lastName, avatar, isVerified}`
+ * @returns {object|null} `{id, firstName, lastName, avatar, isVerified, isBlocked, blockedByMe}`
  */
 function toParticipantDisplay(raw) {
   if (!raw) return null;
@@ -29,6 +29,12 @@ function toParticipantDisplay(raw) {
     lastName: raw.lastName,
     avatar: raw.avatar ? { uri: optimizeImageUrl(raw.avatar, "avatar") } : null,
     isVerified: !!raw.isVerified,
+    // Backend-computed block state (either direction) — see
+    // backend/src/services/conversation.service.js#getBlockStateForUser.
+    // Carried through so ChatScreen can keep its read-only/blocked state
+    // correct after app reloads without any cached local list.
+    isBlocked: !!raw.isBlocked,
+    blockedByMe: !!raw.blockedByMe,
   };
 }
 

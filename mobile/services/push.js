@@ -4,6 +4,7 @@ import * as Device from "expo-device";
 import Constants from "expo-constants";
 
 import api from "./api";
+import { getConnectionState } from "./socket";
 
 const PLACEHOLDER_PROJECT_ID = "REPLACE_WITH_YOUR_EAS_PROJECT_ID";
 
@@ -21,20 +22,28 @@ export function getCurrentPushToken() {
   return currentPushToken;
 }
 
-// While the app is foregrounded, real-time delivery is already handled by
-// services/socket.js's `notification:new` subscription + NotificationToastHost
-// (see hooks/useNotifications.js) — showing a native banner too would be a
-// duplicate of that. Background/killed-app delivery has no in-app UI to
-// duplicate, but by then this handler isn't consulted at all (the OS shows
-// the push directly), so returning "don't show" here only ever suppresses
-// the foreground case.
+// While the app is foregrounded and the realtime socket is connected,
+// real-time delivery is handled by services/socket.js's `notification:new`
+// subscription + NotificationToastHost (see hooks/useNotifications.js) —
+// showing a native banner too would be a duplicate of that. But when the
+// socket is down (service outage, no network), that toast can't arrive, so
+// the native banner is shown instead — foreground notifications must never
+// silently disappear just because realtime is unavailable. Backgrounded and
+// killed-app delivery never consult this handler at all (the OS shows the
+// push directly), so this only ever affects the foreground case.
 Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowBanner: false,
-    shouldShowList: true,
-    shouldPlaySound: false,
-    shouldSetBadge: false,
-  }),
+  handleNotification: async () => {
+    // "disconnected" is also the value before any socket has been opened
+    // (i.e. not signed in) — for a foregrounded signed-in session it
+    // reflects the realtime link's actual state.
+    const realtimeDown = getConnectionState() !== "connected";
+    return {
+      shouldShowBanner: realtimeDown,
+      shouldShowList: true,
+      shouldPlaySound: realtimeDown,
+      shouldSetBadge: false,
+    };
+  },
 });
 
 /**
@@ -84,6 +93,15 @@ async function ensureAndroidChannelsAsync() {
  * all "no push for this device," not errors the caller needs to handle
  * specially.
  *
+ * The one case that MUST NOT stay silent is token generation itself failing
+ * on a real device with permission granted — the most common cause is a
+ * standalone/development build without Firebase Cloud Messaging (FCM)
+ * credentials (expo-notifications throws `E_REGISTRATION_FAILED` /
+ * "Make sure to complete the guide at .../fcm-credentials/"). That failure
+ * is logged (reason only — never the token) so it's diagnosable in dev
+ * instead of silently degrades to "no notifications." The caller still
+ * receives `null` either way.
+ *
  * @returns {Promise<string|null>}
  */
 export async function registerForPushNotificationsAsync() {
@@ -107,6 +125,9 @@ export async function registerForPushNotificationsAsync() {
 
   const projectId = Constants.expoConfig?.extra?.eas?.projectId;
   if (!projectId || projectId === PLACEHOLDER_PROJECT_ID) {
+    console.warn(
+      "[push] Cannot generate an Expo push token: EAS projectId is missing or a placeholder in app.json."
+    );
     return null;
   }
 
@@ -114,7 +135,13 @@ export async function registerForPushNotificationsAsync() {
     const { data: token } = await Notifications.getExpoPushTokenAsync({ projectId });
     currentPushToken = token;
     return token;
-  } catch {
+  } catch (err) {
+    // Never log the token; log only the failure reason. On Android this is
+    // almost always the missing-FCM-credentials case above.
+    console.warn(
+      "[push] Expo push token generation failed on a real device with permission granted:",
+      err?.message || err
+    );
     return null;
   }
 }

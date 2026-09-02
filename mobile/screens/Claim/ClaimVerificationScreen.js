@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { View, ScrollView, Pressable, StyleSheet } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation, useRoute } from "@react-navigation/native";
 
 import { useTheme } from "../../context/ThemeContext";
@@ -19,6 +19,7 @@ import KeyboardAvoidingScreen from "../../components/common/KeyboardAvoidingScre
 export default function ClaimVerificationScreen() {
   const colors = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
+  const insets = useSafeAreaInsets();
   const navigation = useNavigation();
   const route = useRoute();
   const { isAuthenticated } = useAuth();
@@ -68,7 +69,7 @@ export default function ClaimVerificationScreen() {
           {step === 3 ? <ClaimSuccessStep hasProof={form.imagePicker.images.length > 0} /> : null}
         </ScrollView>
 
-        <View style={styles.footer}>
+        <View style={[styles.footer, { paddingBottom: 16 + insets.bottom }]}>
           {step === 2 ? (
             <Pressable
               style={styles.backStepButton}

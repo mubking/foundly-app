@@ -1,6 +1,6 @@
 import React, { useRef, useState, useMemo } from "react";
 import { View, Text, ScrollView, Pressable, Platform, StyleSheet } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 
@@ -12,6 +12,7 @@ import Button from "../../components/Button/Button";
 import Divider from "../../components/common/Divider";
 import SocialButton from "../../components/common/SocialButton";
 import MailIcon from "../../components/common/MailIcon";
+import LockIcon from "../../components/common/LockIcon";
 import KeyboardAvoidingScreen from "../../components/common/KeyboardAvoidingScreen";
 import { useAuth } from "../../context/AuthContext";
 import { googleSignIn, appleSignIn } from "../../services/socialAuth";
@@ -19,6 +20,7 @@ import { googleSignIn, appleSignIn } from "../../services/socialAuth";
 export default function LoginScreen() {
   const colors = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
+  const insets = useSafeAreaInsets();
   const navigation = useNavigation();
   const { login, loginWithGoogle, loginWithApple } = useAuth();
   const [email, setEmail] = useState("");
@@ -80,7 +82,7 @@ export default function LoginScreen() {
       <KeyboardAvoidingScreen>
         <ScrollView
           style={styles.scroll}
-          contentContainerStyle={styles.content}
+          contentContainerStyle={[styles.content, { paddingBottom: 40 + insets.bottom }]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
@@ -115,6 +117,7 @@ export default function LoginScreen() {
               textContentType="password"
               returnKeyType="go"
               onSubmitEditing={handleSignIn}
+              icon={<LockIcon size={16} color={colors.textLight} />}
             />
 
             <Pressable onPress={() => navigation.navigate("ForgotPassword")} style={styles.forgotButton}>

@@ -141,6 +141,19 @@ export function AuthProvider({ children }) {
   }, []);
 
   /**
+   * Merges a partial update into the current session user without a full
+   * re-auth round trip — used after PATCH /api/users/profile so UI that
+   * renders `user` (e.g. the Home header avatar) reflects the change
+   * immediately (e.g. a new profile image) instead of waiting for the next
+   * login/restore. The backend `/auth/me` still returns the canonical value
+   * on the next restore, so this is purely an optimistic local sync.
+   * @param {object} patch - Fields to merge (e.g. `{ avatar }`).
+   */
+  const updateUser = useCallback((patch) => {
+    setUser((prev) => (prev ? { ...prev, ...patch } : prev));
+  }, []);
+
+  /**
    * Called once on app launch (from SplashScreen): reads any stored token
    * and validates it against `/auth/me`.
    *
@@ -214,6 +227,7 @@ export function AuthProvider({ children }) {
       requestPasswordReset,
       resetPassword,
       logout,
+      updateUser,
       restoreSession,
     }),
     [
@@ -227,6 +241,7 @@ export function AuthProvider({ children }) {
       requestPasswordReset,
       resetPassword,
       logout,
+      updateUser,
       restoreSession,
     ]
   );

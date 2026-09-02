@@ -57,20 +57,16 @@ export default function ChatScreen() {
   const itemId = details?.item?.id || routeItemId;
   const itemType = details?.item?.type || routeItemType;
   const itemTitle = details?.item?.title || routeItemTitle;
-  // The item's real photo: the backend now populates `conversation.item.image`
-  // (first Cloudinary upload — see backend/src/services/conversation.service.js),
-  // so `details` is authoritative whenever a conversationId exists (opened
-  // from the inbox, or deep-linked from a notification). Only a brand-new
-  // conversation (recipientId, no conversationId yet — nothing to fetch)
-  // relies on the raw URL Item Details passed through. Normalized to
-  // `{ uri }` so SafeImage always receives the same source shape; null when
-  // the item genuinely has no image, which SafeImage renders as its own
-  // neutral "no image" icon rather than inventing a stock photo.
+  // The backend-side mapping used by `getConversation` already normalizes
+  // an item's image into a `{ uri: string }` shape. Don't re-wrap it here
+  // (that produced `{ uri: { uri: string } }` and caused expo-image to
+  // fail and show the fallback). If a navigation param passed a raw
+  // string URL, convert that into the `{ uri }` shape.
   const itemImage = details?.item?.image
     ? details.item.image
     : typeof routeItemImage === "string" && routeItemImage
-      ? { uri: routeItemImage }
-      : null;
+    ? { uri: routeItemImage }
+    : null;
   const claim = details?.claim || null;
 
   // Only ever read once, on mount — a starting point the sender can edit
@@ -78,7 +74,12 @@ export default function ChatScreen() {
   const [text, setText] = useState(initialText || "");
   const [evidenceVisible, setEvidenceVisible] = useState(false);
   const [sendError, setSendError] = useState(null);
-  const [blocked, setBlocked] = useState(false);
+  // Local-only flag for a block the user just performed in this session.
+  // The authoritative source is the backend: the fetched conversation
+  // payload carries `participant.isBlocked` / `participant.blockedByMe`
+  // (computed server-side), so the read-only/blocked state survives app
+  // reloads without relying on a cached local list.
+  const [blockedLocal, setBlockedLocal] = useState(false);
   const [blocking, setBlocking] = useState(false);
   const scrollRef = useRef(null);
 
@@ -111,6 +112,13 @@ export default function ChatScreen() {
   );
 
   const name = participant ? `${participant.firstName} ${participant.lastName}`.trim() : "Unknown user";
+
+  // Backend-authoritative block state for this thread. `details` is fetched
+  // from `GET /api/chat/conversations/:id` whenever a conversationId exists,
+  // so this is correct after reload/restart. `blockedLocal` only covers the
+  // just-performed block action until that fetch confirms it.
+  const blocked = blockedLocal || details?.participant?.isBlocked === true;
+  const blockedByMe = blockedLocal || details?.participant?.blockedByMe === true;
 
   const handleSend = async () => {
     if (!text.trim() || sending) return;
@@ -145,7 +153,7 @@ export default function ChatScreen() {
     setBlocking(true);
     try {
       await blockUser(participant.id);
-      setBlocked(true);
+      setBlockedLocal(true);
       setSendError(null);
     } catch (err) {
       setSendError(err.message || "Couldn't block this user. Please try again.");
@@ -290,7 +298,9 @@ export default function ChatScreen() {
           <View style={styles.blockedNotice}>
             <ShieldIcon size={16} color={colors.textLight} />
             <Text style={styles.blockedNoticeText}>
-              You've blocked {name}. They can't message you, and you can't message them.
+              {blockedByMe
+                ? `You've blocked ${name}. They can't message you, and you can't message them.`
+                : `${name} has blocked you. You can't message them.`}
             </Text>
           </View>
         ) : (

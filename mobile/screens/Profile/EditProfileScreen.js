@@ -1,10 +1,11 @@
 import React, { useRef, useState, useMemo } from "react";
 import { View, Text, ScrollView, Pressable, StyleSheet } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 
 import { useTheme } from "../../context/ThemeContext";
 import { useProfile } from "../../hooks/useProfile";
+import { useAuth } from "../../context/AuthContext";
 import { useImagePicker } from "../../hooks/useImagePicker";
 import { useAbortOnUnmount } from "../../hooks/useAbortOnUnmount";
 import { uploadImages } from "../../services/upload";
@@ -62,6 +63,8 @@ export default function EditProfileScreen() {
 function EditProfileForm({ profile, updateProfile, onSaved }) {
   const colors = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
+  const insets = useSafeAreaInsets();
+  const { updateUser } = useAuth();
   const [firstName, setFirstName] = useState(profile.firstName || "");
   const [lastName, setLastName] = useState(profile.lastName || "");
   const [phone, setPhone] = useState(profile.phone || "");
@@ -113,6 +116,10 @@ function EditProfileForm({ profile, updateProfile, onSaved }) {
 
       const result = await updateProfile(changes);
       if (result.ok) {
+        // Keep the authenticated session user in sync so the Home header
+        // avatar (which renders `user`, not `profile`) shows the new photo /
+        // name immediately.
+        updateUser(changes);
         onSaved();
       } else {
         setFormError(result.message);
@@ -128,7 +135,7 @@ function EditProfileForm({ profile, updateProfile, onSaved }) {
   return (
     <KeyboardAvoidingScreen>
       <ScrollView
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, { paddingBottom: 40 + insets.bottom }]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >

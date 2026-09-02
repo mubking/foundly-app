@@ -27,14 +27,26 @@ export const resetPasswordSchema = z.object({
 });
 
 export const changePasswordSchema = z.object({
-  currentPassword: z.string().min(1, "Current password is required"),
+  // `currentPassword` is required only for accounts that actually have a
+  // password; social-only (Google/Apple) accounts prove identity with a
+  // freshly-verified provider token instead. The route decides which proof
+  // it needs from the stored account document — never from a
+  // client-supplied flag — see api/auth/change-password/route.js.
+  currentPassword: z.string().min(1, "Current password is required").optional(),
+  idToken: z.string().min(1, "Google reauthentication is required").optional(),
+  identityToken: z.string().min(1, "Apple reauthentication is required").optional(),
   newPassword: z.string().min(8, "New password must be at least 8 characters"),
 });
 
 // `password` is only required for accounts that have one — social-only
-// (Google/Apple) accounts never set a password, so nothing to confirm with.
+// (Google/Apple) accounts never set a password, so they reauthenticate
+// with a verified provider token (`idToken`/`identityToken`) instead. The
+// route enforces which proof it needs from the stored account, never from
+// a client flag.
 export const deleteAccountSchema = z.object({
   password: z.string().optional(),
+  idToken: z.string().optional(),
+  identityToken: z.string().optional(),
 });
 
 export const googleAuthSchema = z.object({

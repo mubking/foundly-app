@@ -10,6 +10,7 @@ import Message from "@/models/Message";
 import User from "@/models/User";
 import { success, error } from "@/lib/response";
 import { notify } from "@/lib/notifications";
+import { isBlockedEitherDirection } from "@/services/block.service";
 import { findOrCreateConversation } from "@/services/message.service";
 import { rateLimitOrError } from "@/lib/rateLimit";
 import { withRequestLogging } from "@/lib/logger";
@@ -86,6 +87,14 @@ async function handlePOST(request) {
     const itemOwner = await User.findById(item.owner).select("isActive").lean();
     if (itemOwner && itemOwner.isActive === false) {
       return error("Item not found", 404);
+    }
+
+    // Blocking is mutual for communication: if either this claimant or the
+    // item's owner has blocked the other, no claim may be filed. Without
+    // this, filing a claim would create a conversation, a system message,
+    // and a notification as an end-run around the block.
+    if (await isBlockedEitherDirection(user.id, item.owner.toString())) {
+      return error("You can't claim this item", 403);
     }
 
     // Explicit pre-check for a clean 409 message. The unique index on

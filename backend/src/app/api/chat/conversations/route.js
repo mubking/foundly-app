@@ -17,6 +17,7 @@ import {
   ITEM_SELECT,
   toConversationResult,
   getUnreadCounts,
+  getBlockStateForUser,
 } from "@/services/conversation.service";
 
 export async function GET(request) {
@@ -48,13 +49,16 @@ export async function GET(request) {
       Conversation.countDocuments(filter),
     ]);
 
-    const unreadMap = await getUnreadCounts(
-      conversations.map((c) => c._id),
-      user.id
-    );
+    const [unreadMap, blockState] = await Promise.all([
+      getUnreadCounts(
+        conversations.map((c) => c._id),
+        user.id
+      ),
+      getBlockStateForUser(user.id),
+    ]);
 
     return success({
-      items: conversations.map((c) => toConversationResult(c, user.id, unreadMap)),
+      items: conversations.map((c) => toConversationResult(c, user.id, unreadMap, blockState)),
       page,
       limit,
       total,

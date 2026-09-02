@@ -1,5 +1,6 @@
 import React, { useMemo } from "react";
 import { View, TextInput, Pressable, StyleSheet } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useTheme } from "../../context/ThemeContext";
 import SendIcon from "./SendIcon";
@@ -7,10 +8,11 @@ import SendIcon from "./SendIcon";
 export default function ChatInputBar({ value, onChangeText, onSend, style }) {
   const colors = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
+  const insets = useSafeAreaInsets();
   const hasText = value.trim().length > 0;
 
   return (
-    <View style={[styles.bar, style]}>
+    <View style={[styles.bar, { paddingBottom: 12 + insets.bottom }, style]}>
       <View style={styles.field}>
         <TextInput
           value={value}

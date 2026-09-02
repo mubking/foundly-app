@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from "react";
 import { View, Text, ScrollView, StyleSheet } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation, useRoute } from "@react-navigation/native";
 
 import { useTheme } from "../../context/ThemeContext";
@@ -15,6 +15,7 @@ import { useAuth } from "../../context/AuthContext";
 export default function ResetPasswordScreen() {
   const colors = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
+  const insets = useSafeAreaInsets();
   const navigation = useNavigation();
   const route = useRoute();
   const { resetPassword } = useAuth();
@@ -53,7 +54,7 @@ export default function ResetPasswordScreen() {
       <KeyboardAvoidingScreen keyboardVerticalOffset={60}>
         <ScrollView
           style={styles.scroll}
-          contentContainerStyle={styles.content}
+          contentContainerStyle={[styles.content, { paddingBottom: 40 + insets.bottom }]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
@@ -98,6 +99,7 @@ export default function ResetPasswordScreen() {
               autoComplete="password-new"
               textContentType="newPassword"
               returnKeyType="next"
+              icon={<LockIcon size={16} color={colors.textLight} />}
             />
 
             <Input
@@ -111,6 +113,7 @@ export default function ResetPasswordScreen() {
               returnKeyType="done"
               onSubmitEditing={handleReset}
               error={confirmPassword && !passwordsMatch ? "Passwords don't match" : undefined}
+              icon={<LockIcon size={16} color={colors.textLight} />}
             />
 
             {error ? <Text style={styles.errorText}>{error}</Text> : null}

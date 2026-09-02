@@ -1,6 +1,6 @@
 import React, { useMemo } from "react";
 import { View, Text, ScrollView, StyleSheet } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation, useRoute } from "@react-navigation/native";
 
 import { useTheme } from "../../context/ThemeContext";
@@ -95,6 +95,7 @@ const DOCS = {
 export default function LegalScreen() {
   const colors = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
+  const insets = useSafeAreaInsets();
   const navigation = useNavigation();
   const route = useRoute();
   const doc = DOCS[route.params?.doc] || DOCS.terms;
@@ -102,7 +103,10 @@ export default function LegalScreen() {
   return (
     <SafeAreaView style={styles.screen} edges={["top"]}>
       <Header title={doc.title} onBack={() => navigation.goBack()} />
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={[styles.content, { paddingBottom: 40 + insets.bottom }]}
+        showsVerticalScrollIndicator={false}
+      >
         {doc.sections.map((section) => (
           <View key={section.heading} style={styles.section}>
             <Text style={styles.heading}>{section.heading}</Text>

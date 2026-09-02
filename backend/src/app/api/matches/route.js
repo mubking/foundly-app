@@ -12,6 +12,14 @@ import { success, error } from "@/lib/response";
 
 const ITEM_SELECT = "title images location category status";
 
+// Option B (account deactivation): a deactivated account's listings are
+// flipped to status "removed" (and admin-hidden listings to "suspended") —
+// neither may surface in the match previews another user sees, or the
+// deactivated user's item data (title/image/location) would leak through
+// the match relationship even though it's gone from every public discovery
+// endpoint.
+const HIDDEN_ITEM_STATUSES = new Set(["removed", "suspended"]);
+
 function toItemPreview(item) {
   if (!item) return null;
   return {
@@ -72,7 +80,16 @@ export async function GET(request) {
     // A match can outlive one of its two items (DELETE /api/items/[id]
     // doesn't cascade-delete Match records) — populate resolves those to
     // null, so they're dropped here rather than sent to the client broken.
-    const items = matches.filter((m) => m.lostItem && m.foundItem).map((m) => toMatchResult(m, user.id));
+    // Removed/suspended items are also dropped (see HIDDEN_ITEM_STATUSES)
+    // so deactivated/admin-hidden listings don't surface in match previews.
+    const items = matches
+      .filter((m) => m.lostItem && m.foundItem)
+      .filter(
+        (m) =>
+          !HIDDEN_ITEM_STATUSES.has(m.lostItem.status) &&
+          !HIDDEN_ITEM_STATUSES.has(m.foundItem.status)
+      )
+      .map((m) => toMatchResult(m, user.id));
 
     return success({ items, page, limit, total, totalPages: Math.ceil(total / limit) });
   } catch (err) {

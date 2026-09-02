@@ -97,6 +97,32 @@ export function markAsRead(id) {
 }
 
 /**
+ * Wraps `DELETE /api/notifications` — clears the authenticated user's entire
+ * notification history server-side. Scoped to the caller's own documents
+ * only (`recipient: user.id`), so it can never delete another user's
+ * notifications. `deletedCount` reflects how many were actually removed.
+ *
+ * @returns {Promise<{deletedCount: number}>}
+ * @throws {ApiError}
+ */
+export function clearNotifications() {
+  return api.delete("/notifications");
+}
+
+/**
+ * Wraps `DELETE /api/notifications/:id` — deletes a single one of the
+ * caller's own notifications (404 if it doesn't exist, 403-style scoping is
+ * enforced server-side by filtering on `recipient`). Returns no body.
+ *
+ * @param {string} id
+ * @returns {Promise<void>}
+ * @throws {ApiError}
+ */
+export function deleteNotification(id) {
+  return api.delete(`/notifications/${id}`);
+}
+
+/**
  * Subscribes to real-time `notification:new` pushes (see
  * socket/services/notificationService.js — it watches for inserts made by
  * any process, so this fires for e.g. a claim approval even though that

@@ -4,6 +4,7 @@ import User from "@/models/User";
 import Match from "@/models/Match";
 import { notify } from "@/lib/notifications";
 import { tokenize, jaccard } from "./duplicate-detection.service";
+import { isBlockedEitherDirection } from "./block.service";
 
 // Bounds every candidate scan — never a full collection scan regardless of
 // table size. Paired with the {status:1, category:1, createdAt:-1} index
@@ -186,6 +187,15 @@ async function fetchCandidates(Model, category) {
  * inserted or updated.
  */
 async function upsertMatch({ lostItemDoc, foundItemDoc, score, reasons }) {
+  // Blocking is mutual for communication: a blocked pair must never be
+  // surfaced as a match, or either owner could use the match's
+  // claim/message entry points to contact someone who blocked them (the
+  // claim and message routes have their own checks too — this keeps the
+  // system from even suggesting the contact).
+  if (await isBlockedEitherDirection(lostItemDoc.owner, foundItemDoc.owner)) {
+    return null;
+  }
+
   const match = await Match.findOneAndUpdate(
     { lostItem: lostItemDoc._id, foundItem: foundItemDoc._id },
     {

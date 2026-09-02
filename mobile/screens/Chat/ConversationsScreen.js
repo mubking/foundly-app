@@ -1,7 +1,7 @@
-import React, { useMemo } from "react";
+import React, { useCallback, useMemo, useRef } from "react";
 import { View, Text, FlatList, RefreshControl, StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useNavigation } from "@react-navigation/native";
+import { useFocusEffect, useNavigation } from "@react-navigation/native";
 
 import { useTheme } from "../../context/ThemeContext";
 import { useConversations } from "../../hooks/useConversations";
@@ -15,7 +15,25 @@ export default function ConversationsScreen() {
   const colors = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const navigation = useNavigation();
-  const { conversations, loading, refreshing, error, refresh, markRead } = useConversations();
+  const { conversations, loading, refreshing, error, refresh, refreshSilently, markRead } = useConversations();
+
+  // Refetch silently every time the Messages tab regains focus (not just on
+  // mount), so participant names/avatars/block state are always fresh — e.g.
+  // a conversation partner who deactivated their account shows as
+  // "Deleted User" right away instead of the stale pre-deactivation name
+  // until a manual pull-to-refresh. The first focus is the mount itself
+  // (useConversations already loads there), so it's skipped to avoid a
+  // duplicate fetch.
+  const isFirstFocus = useRef(true);
+  useFocusEffect(
+    useCallback(() => {
+      if (isFirstFocus.current) {
+        isFirstFocus.current = false;
+        return;
+      }
+      refreshSilently();
+    }, [refreshSilently])
+  );
 
   const handleNavigate = (route) => {
     if (route === "Chat") return;

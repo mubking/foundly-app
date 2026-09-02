@@ -50,6 +50,7 @@ export default function HomeScreen() {
   const { user } = useAuth();
   const { unreadCount } = useNotifications();
   const matchAlert = useMatchAlert();
+  const [greeting, setGreeting] = useState(() => getGreeting());
   const [filter, setFilter] = useState("all");
 
   const [items, setItems] = useState([]);
@@ -116,6 +117,15 @@ export default function HomeScreen() {
     }, [loadItems])
   );
 
+  // Recompute greeting on every focus so it never shows a stale/day-night
+  // mismatch (e.g. the app left open overnight or the device timezone
+  // changed while the app was backgrounded).
+  useFocusEffect(
+    useCallback(() => {
+      setGreeting(getGreeting());
+    }, [])
+  );
+
   const handleRefresh = useCallback(() => {
     loadItems({ isRefresh: true });
   }, [loadItems]);
@@ -131,7 +141,7 @@ export default function HomeScreen() {
     <SafeAreaView style={styles.container} edges={["top"]}>
       <View style={styles.header}>
         <View>
-          <Text style={styles.greeting}>{getGreeting()}</Text>
+          <Text style={styles.greeting}>{greeting}</Text>
           <Text style={styles.name}>{getDisplayName(user)}</Text>
         </View>
 
@@ -149,7 +159,11 @@ export default function HomeScreen() {
               </View>
             ) : null}
           </Pressable>
-          <Avatar size={40} initials={getInitials(user)} />
+          <Avatar
+            size={40}
+            initials={getInitials(user)}
+            source={user?.avatar ? { uri: user.avatar } : null}
+          />
         </View>
       </View>
 

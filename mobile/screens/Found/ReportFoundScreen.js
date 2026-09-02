@@ -1,6 +1,6 @@
 import React, { useMemo } from "react";
 import { Text, ScrollView, StyleSheet } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 
 import { useTheme } from "../../context/ThemeContext";
@@ -16,6 +16,7 @@ import KeyboardAvoidingScreen from "../../components/common/KeyboardAvoidingScre
 export default function ReportFoundScreen() {
   const colors = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
+  const insets = useSafeAreaInsets();
   const navigation = useNavigation();
   const form = useReportFoundForm();
 
@@ -26,7 +27,7 @@ export default function ReportFoundScreen() {
       <KeyboardAvoidingScreen>
         <ScrollView
           style={styles.scroll}
-          contentContainerStyle={styles.content}
+          contentContainerStyle={[styles.content, { paddingBottom: 40 + insets.bottom }]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >

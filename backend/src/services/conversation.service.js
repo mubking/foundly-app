@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 
 import Message from "@/models/Message";
 import Claim from "@/models/Claim";
+import UserBlock from "@/models/UserBlock";
 
 // Shared between GET /api/chat/conversations (list) and
 // GET /api/chat/conversations/:id (single) so both render a conversation
@@ -19,21 +20,61 @@ export const LAST_MESSAGE_SELECT = "text sender createdAt read";
 export const ITEM_SELECT = "title images";
 
 /**
+ * The current user's block state relative to conversation participants —
+ * both directions, because a block stops communication regardless of who
+ * initiated it (see block.service.js's isBlockedEitherDirection). Both chat
+ * endpoints use this to stamp `isBlocked` / `blockedByMe` onto each
+ * conversation's participant, which is what the mobile chat screen uses to
+ * keep its read-only/blocked state correct across app reloads without any
+ * cached local list.
+ *
+ * @param {string} currentUserId
+ * @returns {Promise<{blockedByMe: Set<string>, blockedMe: Set<string>}>}
+ */
+export async function getBlockStateForUser(currentUserId) {
+  const [blockedByMe, blockedMe] = await Promise.all([
+    UserBlock.find({ blocker: currentUserId }).distinct("blocked"),
+    UserBlock.find({ blocked: currentUserId }).distinct("blocker"),
+  ]);
+  return {
+    blockedByMe: new Set(blockedByMe.map(String)),
+    blockedMe: new Set(blockedMe.map(String)),
+  };
+}
+
+/**
  * Maps one populated, `.lean()`ed Conversation document into the shape
  * both chat endpoints return. `unreadCounts` is a `Map<conversationId,
- * count>` — see {@link getUnreadCounts}.
+ * count>` — see {@link getUnreadCounts}. `blockState` (see
+ * {@link getBlockStateForUser}) marks a conversation as blocked when either
+ * side has blocked the other, and reports which direction so the UI can word
+ * its notice correctly.
  *
  * @param {object} conversation
  * @param {string} currentUserId
  * @param {Map<string, number>} unreadCounts
+ * @param {{blockedByMe?: Set<string>, blockedMe?: Set<string>}} [blockState]
  * @returns {object}
  */
-export function toConversationResult(conversation, currentUserId, unreadCounts) {
+export function toConversationResult(
+  conversation,
+  currentUserId,
+  unreadCounts,
+  blockState = { blockedByMe: new Set(), blockedMe: new Set() }
+) {
   const other = conversation.participants.find((p) => p._id.toString() !== currentUserId);
   // Option B (account deactivation): a deactivated participant still has a
   // retained document, but their identity must not be surfaced — show a
   // neutral "Deleted User" with no avatar instead.
   const otherInactive = Boolean(other && other.isActive === false);
+  const otherId = other ? other._id.toString() : null;
+  // Blocking is mutual for communication — the thread is read-only for both
+  // sides once either has blocked the other. Direction is reported so the
+  // UI can say "you've blocked X" vs "X has blocked you".
+  const isBlocked = otherId
+    ? blockState.blockedByMe.has(otherId) || blockState.blockedMe.has(otherId)
+    : false;
+  const blockedByMe = otherId ? blockState.blockedByMe.has(otherId) : false;
 
   return {
     id: conversation._id,
@@ -44,6 +85,8 @@ export function toConversationResult(conversation, currentUserId, unreadCounts) 
           lastName: otherInactive ? "User" : other.lastName,
           avatar: otherInactive ? null : other.avatar,
           isVerified: otherInactive ? false : other.isVerified || false,
+          isBlocked,
+          blockedByMe,
         }
       : null,
     item: conversation.item

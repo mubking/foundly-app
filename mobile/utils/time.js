@@ -46,15 +46,15 @@ export function formatClockTime(dateInput) {
  * Time-of-day greeting for the Home screen header, based on the device's
  * local clock (`Date`'s `getHours()` already reads local time, no timezone
  * conversion needed):
- * 05:00–11:59 "Good Morning", 12:00–16:59 "Good Afternoon",
- * 17:00–20:59 "Good Evening", 21:00–04:59 "Good Night".
+ * 05:00–11:59 "Good Morning", 12:00–17:59 "Good Afternoon",
+ * 18:00–21:59 "Good Evening", 22:00–04:59 "Good Night".
  * @param {Date} [now] - Injectable for tests; defaults to the current time.
  * @returns {string}
  */
 export function getGreeting(now = new Date()) {
   const hour = now.getHours();
   if (hour >= 5 && hour < 12) return "Good Morning";
-  if (hour >= 12 && hour < 17) return "Good Afternoon";
-  if (hour >= 17 && hour < 21) return "Good Evening";
+  if (hour >= 12 && hour < 18) return "Good Afternoon";
+  if (hour >= 18 && hour < 22) return "Good Evening";
   return "Good Night";
 }

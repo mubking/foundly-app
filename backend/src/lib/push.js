@@ -4,6 +4,7 @@ import Message from "@/models/Message";
 import Notification from "@/models/Notification";
 
 const EXPO_PUSH_ENDPOINT = "https://exp.host/--/api/v2/push/send";
+const EXPO_RECEIPTS_ENDPOINT = "https://exp.host/--/api/v2/push/getReceipts";
 
 // Expo push tokens look like "ExponentPushToken[xxxx]" or "ExpoPushToken[xxxx]".
 const EXPO_TOKEN_PATTERN = /^Expo(nent)?PushToken\[.+\]$/;
@@ -165,6 +166,43 @@ export async function sendPushToUser(userId, { title, message, data }) {
 
     if (staleTokens.length > 0) {
       await User.updateOne({ _id: userId }, { $pull: { pushTokens: { $in: staleTokens } } });
+    }
+
+    // A ticket that came back "ok" is only accepted for delivery — the
+    // actual outcome is the *receipt*. Some failures (notably
+    // DeviceNotRegistered when the device was unreachable at send time)
+    // surface only there, so a ticket id is correlated back to its token
+    // and any receipt-confirmed stale token is pruned too. Best-effort: a
+    // receipts endpoint failure must never fail the notification itself,
+    // and receipts still "in-flight" are simply skipped (no polling job in
+    // this serverless context — the immediate-ticket path above already
+    // catches the common stale-token case).
+    try {
+      const okTickets = tickets
+        .map((ticket, i) => (ticket.status === "ok" && ticket.id ? { id: ticket.id, token: tokens[i] } : null))
+        .filter(Boolean);
+      if (okTickets.length > 0) {
+        const receiptsResponse = await fetch(EXPO_RECEIPTS_ENDPOINT, {
+          method: "POST",
+          headers,
+          body: JSON.stringify({ ids: okTickets.map((t) => t.id) }),
+        });
+        const receiptsPayload = await receiptsResponse.json().catch(() => null);
+        const receipts = receiptsPayload?.data || {};
+        const receiptStaleTokens = okTickets
+          .filter((t) => receipts[t.id]?.status === "error" && receipts[t.id]?.details?.error === "DeviceNotRegistered")
+          .map((t) => t.token);
+        if (receiptStaleTokens.length > 0) {
+          await User.updateOne(
+            { _id: userId },
+            { $pull: { pushTokens: { $in: receiptStaleTokens } } }
+          );
+        }
+      }
+    } catch (err) {
+      // Logged and swallowed — pruning via receipts is a maintenance
+      // nicety, never something that should break the send path.
+      console.error("Verify push receipts error:", err);
     }
   } catch (err) {
     console.error("Send push notification error:", err);

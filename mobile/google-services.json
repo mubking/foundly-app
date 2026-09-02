@@ -1,0 +1,57 @@
+{
+
+  "project_info": {
+
+    "project_number": "156351441498",
+
+    "project_id": "adeshina-s-project",
+
+    "storage_bucket": "adeshina-s-project.appspot.com"
+
+  },
+
+  "client": [
+
+    {
+
+      "client_info": {
+
+        "mobilesdk_app_id": "1:156351441498:android:1645b2cc2ef5122f750663",
+
+        "android_client_info": {
+
+          "package_name": "com.foundly.app"
+
+        }
+
+      },
+
+      "oauth_client": [],
+
+      "api_key": [
+
+        {
+
+          "current_key": "AIzaSyAajr4-2T7rlgWIIsm5e3o25EJLIl9cDuE"
+
+        }
+
+      ],
+
+      "services": {
+
+        "appinvite_service": {
+
+          "other_platform_oauth_client": []
+
+        }
+
+      }
+
+    }
+
+  ],
+
+  "configuration_version": "1"
+
+}

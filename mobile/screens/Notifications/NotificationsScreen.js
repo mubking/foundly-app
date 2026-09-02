@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useState } from "react";
-import { View, Text, FlatList, Pressable, RefreshControl, ActivityIndicator, StyleSheet } from "react-native";
+import { View, Text, FlatList, Pressable, RefreshControl, ActivityIndicator, Alert, StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 
@@ -62,8 +62,11 @@ export default function NotificationsScreen() {
     loadMore,
     markAsRead,
     markAllAsRead,
+    clearAll,
+    deleteOne,
   } = useNotifications();
   const [actionError, setActionError] = useState(null);
+  const [clearing, setClearing] = useState(false);
 
   const handleNavigate = (route) => {
     if (route === "Notifications") return;
@@ -91,6 +94,41 @@ export default function NotificationsScreen() {
     setActionError(result.ok ? null : result.message || "Couldn't update notifications.");
   }, [markAllAsRead]);
 
+  // Deletes a single notification — real deletion, not a client-only hide
+  // (the backend removes the document, so it stays gone after reload).
+  const handleDeleteOne = useCallback(
+    async (notification) => {
+      setActionError(null);
+      const result = await deleteOne(notification.id);
+      if (!result.ok) setActionError(result.message || "Couldn't delete that notification.");
+    },
+    [deleteOne]
+  );
+
+  // Destructive bulk action — confirm first, then delete server-side and
+  // clear local state. Only the caller's own notifications are affected.
+  const handleClearAll = useCallback(() => {
+    if (clearing || notifications.length === 0) return;
+    setActionError(null);
+    Alert.alert(
+      "Clear all notifications?",
+      "This permanently removes all of your notifications. This can't be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Clear All",
+          style: "destructive",
+          onPress: async () => {
+            setClearing(true);
+            const result = await clearAll();
+            setClearing(false);
+            if (!result.ok) setActionError(result.message || "Couldn't clear notifications.");
+          },
+        },
+      ]
+    );
+  }, [clearing, notifications.length, clearAll]);
+
   const renderItem = useCallback(
     ({ item }) => {
       const type = NOTIFICATION_TYPES[item.type] || DEFAULT_TYPE;
@@ -112,11 +150,12 @@ export default function NotificationsScreen() {
           time={item.time}
           read={item.isRead}
           onPress={() => handleOpen(item)}
+          onDelete={() => handleDeleteOne(item)}
           style={styles.card}
         />
       );
     },
-    [handleOpen, colorMap, tintMap, styles]
+    [handleOpen, handleDeleteOne, colorMap, tintMap, styles]
   );
 
   return (
@@ -125,15 +164,30 @@ export default function NotificationsScreen() {
         title="Notifications"
         onBack={() => navigation.goBack()}
         right={
-          unreadCount > 0 ? (
-            <Pressable
-              hitSlop={8}
-              onPress={handleMarkAllRead}
-              accessibilityRole="button"
-              accessibilityLabel="Mark all notifications as read"
-            >
-              <Text style={styles.markReadText}>Mark all read</Text>
-            </Pressable>
+          notifications.length > 0 ? (
+            <View style={styles.headerActions}>
+              {unreadCount > 0 ? (
+                <Pressable
+                  hitSlop={8}
+                  onPress={handleMarkAllRead}
+                  accessibilityRole="button"
+                  accessibilityLabel="Mark all notifications as read"
+                >
+                  <Text style={styles.headerActionText}>Mark all read</Text>
+                </Pressable>
+              ) : null}
+              <Pressable
+                hitSlop={8}
+                onPress={handleClearAll}
+                disabled={clearing}
+                accessibilityRole="button"
+                accessibilityLabel="Clear all notifications"
+              >
+                <Text style={[styles.headerActionText, styles.clearAllText]}>
+                  {clearing ? "Clearing…" : "Clear all"}
+                </Text>
+              </Pressable>
+            </View>
           ) : null
         }
       />
@@ -188,11 +242,19 @@ const makeStyles = (colors) => StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-  markReadText: {
+  headerActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+    paddingRight: 4,
+  },
+  headerActionText: {
     fontSize: 12,
     fontWeight: "700",
     color: colors.primary,
-    paddingRight: 4,
+  },
+  clearAllText: {
+    color: colors.danger,
   },
   unreadBanner: {
     flexDirection: "row",

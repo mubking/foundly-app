@@ -3,6 +3,8 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useR
 import {
   getNotifications,
   markAsRead as markAsReadRequest,
+  clearNotifications as clearNotificationsRequest,
+  deleteNotification as deleteNotificationRequest,
   subscribeToNewNotifications,
 } from "../services/notifications";
 import { refreshAppBadge } from "../services/badge";
@@ -205,6 +207,38 @@ export function NotificationsProvider({ children }) {
 
   const unreadCount = useMemo(() => notifications.filter((n) => !n.isRead).length, [notifications]);
 
+  // Deletes the caller's entire notification history server-side and clears
+  // local state in one step — not a client-only hide (the backend removes
+  // the documents, so a reload stays cleared). Increments the request id so
+  // any in-flight page fetch is treated as stale.
+  const clearAll = useCallback(async () => {
+    try {
+      const result = await clearNotificationsRequest();
+      requestIdRef.current++;
+      setNotifications([]);
+      setPage(1);
+      setTotalPages(1);
+      refreshAppBadge();
+      return { ok: true, deletedCount: result?.deletedCount ?? 0 };
+    } catch (err) {
+      return { ok: false, message: err.message || "Couldn't clear notifications." };
+    }
+  }, []);
+
+  // Deletes one of the caller's own notifications server-side and removes it
+  // from local state. Unlike `markAsRead`, this is actual deletion — the
+  // notification is gone for good.
+  const deleteOne = useCallback(async (id) => {
+    try {
+      await deleteNotificationRequest(id);
+      setNotifications((prev) => prev.filter((n) => n.id !== id));
+      refreshAppBadge();
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, message: err.message || "Couldn't delete that notification." };
+    }
+  }, []);
+
   const value = useMemo(
     () => ({
       notifications,
@@ -218,6 +252,8 @@ export function NotificationsProvider({ children }) {
       loadMore,
       markAsRead,
       markAllAsRead,
+      clearAll,
+      deleteOne,
     }),
     [
       notifications,
@@ -232,6 +268,8 @@ export function NotificationsProvider({ children }) {
       loadMore,
       markAsRead,
       markAllAsRead,
+      clearAll,
+      deleteOne,
     ]
   );
 
@@ -254,6 +292,8 @@ export function NotificationsProvider({ children }) {
  *   loadMore: () => Promise<void>,
  *   markAsRead: (id: string) => Promise<{ok: boolean, message?: string}>,
  *   markAllAsRead: () => Promise<{ok: boolean, message?: string}>,
+ *   clearAll: () => Promise<{ok: boolean, message?: string}>,
+ *   deleteOne: (id: string) => Promise<{ok: boolean, message?: string}>,
  * }}
  */
 export function useNotifications() {

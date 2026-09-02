@@ -3,6 +3,7 @@ import { View, Text, Pressable, StyleSheet } from "react-native";
 
 import { useTheme } from "../../context/ThemeContext";
 import Avatar from "../Avatar/Avatar";
+import XIcon from "./XIcon";
 
 /**
  * `avatar`/`avatarInitials` render the sender's photo instead of the
@@ -23,6 +24,7 @@ export default function NotificationCard({
   time,
   read,
   onPress,
+  onDelete,
   style,
 }) {
   const colors = useTheme();
@@ -51,6 +53,18 @@ export default function NotificationCard({
         ) : null}
         <Text style={styles.time}>{time}</Text>
       </View>
+
+      {onDelete ? (
+        <Pressable
+          onPress={onDelete}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Delete notification"
+          style={styles.deleteButton}
+        >
+          <XIcon size={16} color={colors.subtle} />
+        </Pressable>
+      ) : null}
     </Pressable>
   );
 }
@@ -97,6 +111,11 @@ const makeStyles = (colors) => StyleSheet.create({
     height: 8,
     borderRadius: 4,
     backgroundColor: colors.primary,
+  },
+  deleteButton: {
+    alignSelf: "flex-start",
+    padding: 4,
+    marginLeft: 4,
   },
   body: {
     fontSize: 12,

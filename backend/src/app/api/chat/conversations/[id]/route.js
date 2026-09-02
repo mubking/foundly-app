@@ -16,6 +16,7 @@ import {
   ITEM_SELECT,
   toConversationResult,
   getUnreadCounts,
+  getBlockStateForUser,
   findClaimForConversation,
 } from "@/services/conversation.service";
 
@@ -57,13 +58,14 @@ export async function GET(request, context) {
       return error("You are not a participant in this conversation", 403);
     }
 
-    const [unreadMap, claim] = await Promise.all([
+    const [unreadMap, claim, blockState] = await Promise.all([
       getUnreadCounts([conversation._id], user.id),
       findClaimForConversation(conversation, user.id),
+      getBlockStateForUser(user.id),
     ]);
 
     return success({
-      ...toConversationResult(conversation, user.id, unreadMap),
+      ...toConversationResult(conversation, user.id, unreadMap, blockState),
       claim,
     });
   } catch (err) {

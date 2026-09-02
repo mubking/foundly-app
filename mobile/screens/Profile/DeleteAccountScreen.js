@@ -1,15 +1,17 @@
 import React, { useState, useMemo } from "react";
 import { View, Text, ScrollView, Alert, StyleSheet } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 
 import { useTheme } from "../../context/ThemeContext";
 import { useAuth } from "../../context/AuthContext";
 import { deleteAccount } from "../../services/users";
+import { googleSignIn, appleSignIn } from "../../services/socialAuth";
 
 import Header from "../../components/Header/Header";
 import Input from "../../components/Input/Input";
 import Button from "../../components/Button/Button";
+import SocialButton from "../../components/common/SocialButton";
 import IconBadge from "../../components/common/IconBadge";
 import Trash2Icon from "../../components/common/Trash2Icon";
 import KeyboardAvoidingScreen from "../../components/common/KeyboardAvoidingScreen";
@@ -20,39 +22,87 @@ const CONSEQUENCES = [
   "Your account data is retained by Foundly (it is not deleted). This can't be undone from inside the app.",
 ];
 
-// Settings > Danger Zone > Delete Account. Requires the current password
-// to confirm (social-only accounts have none — the backend skips that
-// check for them, see services/users.js#deleteAccount). On success the
+// Settings > Danger Zone > Delete Account. Reauthentication is always
+// required before the destructive call — password confirmation for accounts
+// that have one, a verified Google/Apple reauthentication for social-only
+// accounts (never a skipped check; the backend independently decides which
+// proof it needs and rejects a passwordless deactivation). On success the
 // session is exactly as invalid as a banned/suspended one, so this reuses
 // `logout()` to clear it locally and resets the stack to Login, same as
 // useLogout.
 export default function DeleteAccountScreen() {
   const colors = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
+  const insets = useSafeAreaInsets();
   const navigation = useNavigation();
-  const { logout } = useAuth();
+  const { user, logout } = useAuth();
+
+  // The backend (auth/me via toPublicUser) independently reports whether
+  // this account has a local password; the client only renders, never
+  // asserts. Absent the field (e.g. a stale cached session), default to the
+  // password flow — the safer assumption.
+  const hasPassword = user?.hasPassword !== false;
 
   const [password, setPassword] = useState("");
   const [formError, setFormError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [reauthLoading, setReauthLoading] = useState(false);
+  const [reauthToken, setReauthToken] = useState(null); // { kind: "google"|"apple", token }
 
-  const handleDelete = () => {
+  const providerLabel = user?.provider === "apple" ? "Continue with Apple" : "Continue with Google";
+  const providerLoadingLabel =
+    user?.provider === "apple" ? "Verifying with Apple..." : "Verifying with Google...";
+
+  const handleProviderReauth = async () => {
+    if (reauthLoading) return;
+    setReauthLoading(true);
+    setFormError("");
+    try {
+      let proof;
+      if (user?.provider === "apple") {
+        const credential = await appleSignIn();
+        if (!credential.identityToken) throw new Error("Apple sign-in didn't return a token.");
+        proof = { kind: "apple", token: credential.identityToken };
+      } else {
+        // Default to Google — every social account here is Google unless
+        // the backend explicitly said Apple (provider is server-reported).
+        const idToken = await googleSignIn();
+        proof = { kind: "google", token: idToken };
+      }
+      setReauthToken(proof);
+      // Reauthentication succeeded — now show the final destructive confirm.
+      handleDelete(proof);
+    } catch (err) {
+      if (err.code !== "CANCELLED") {
+        setFormError(err.message || "Reauthentication failed. Please try again.");
+      }
+    } finally {
+      setReauthLoading(false);
+    }
+  };
+
+  const handleDelete = (proofOverride) => {
     Alert.alert(
       "Deactivate your account?",
       "This deactivates your Reunio account and hides your activity from other users. Your data is retained and this can't be undone.",
       [
         { text: "Cancel", style: "cancel" },
-        { text: "Deactivate Account", style: "destructive", onPress: confirmDelete },
+        { text: "Deactivate Account", style: "destructive", onPress: () => confirmDelete(proofOverride) },
       ]
     );
   };
 
-  const confirmDelete = async () => {
+  const confirmDelete = async (proofOverride) => {
     if (submitting) return;
     setFormError("");
     setSubmitting(true);
     try {
-      await deleteAccount(password || undefined);
+      const proof = proofOverride || (hasPassword ? { password } : reauthToken);
+      await deleteAccount({
+        ...(proof?.password ? { password: proof.password } : {}),
+        ...(proof?.kind === "apple" ? { identityToken: proof.token } : {}),
+        ...(proof?.kind === "google" ? { idToken: proof.token } : {}),
+      });
       await logout();
       navigation.reset({ index: 0, routes: [{ name: "Login" }] });
     } catch (err) {
@@ -67,7 +117,7 @@ export default function DeleteAccountScreen() {
 
       <KeyboardAvoidingScreen>
         <ScrollView
-          contentContainerStyle={styles.content}
+          contentContainerStyle={[styles.content, { paddingBottom: 40 + insets.bottom }]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
@@ -87,35 +137,53 @@ export default function DeleteAccountScreen() {
             ))}
           </View>
 
-          <View style={styles.form}>
-            <Input
-              label="Confirm Your Password"
-              placeholder="Leave blank if you use Google or Apple sign-in"
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-              autoComplete="password"
-              textContentType="password"
-              returnKeyType="done"
-              onSubmitEditing={handleDelete}
-            />
+          {hasPassword ? (
+            <View style={styles.form}>
+              <Input
+                label="Confirm Your Password"
+                placeholder="Your current password"
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry
+                autoComplete="password"
+                textContentType="password"
+                returnKeyType="done"
+                onSubmitEditing={() => handleDelete()}
+              />
 
-            {formError ? <Text style={styles.formError}>{formError}</Text> : null}
+              {formError ? <Text style={styles.formError}>{formError}</Text> : null}
 
-            <Button
-              fullWidth
-              variant="red"
-              disabled={submitting}
-              onPress={handleDelete}
-              style={styles.deleteButton}
-            >
-              {submitting ? "Deactivating account..." : "Deactivate Account"}
-            </Button>
+              <Button
+                fullWidth
+                variant="red"
+                disabled={submitting || password.length === 0}
+                onPress={() => handleDelete()}
+                style={styles.deleteButton}
+              >
+                {submitting ? "Deactivating account..." : "Deactivate Account"}
+              </Button>
+            </View>
+          ) : (
+            <>
+              <Text style={styles.body}>
+                You signed up with {user?.provider === "apple" ? "Apple" : "Google"} and don't have
+                a Foundly password. Reauthenticate with your{" "}
+                {user?.provider === "apple" ? "Apple" : "Google"} account to confirm it's really you
+                before deactivating.
+              </Text>
 
-            <Button fullWidth variant="surface" disabled={submitting} onPress={() => navigation.goBack()}>
-              Cancel
-            </Button>
-          </View>
+              <View style={styles.form}>
+                <SocialButton
+                  variant={user?.provider === "apple" ? "dark" : "light"}
+                  label={reauthLoading ? providerLoadingLabel : providerLabel}
+                  onPress={handleProviderReauth}
+                  disabled={reauthLoading || submitting}
+                  style={styles.reauthButton}
+                />
+                {formError ? <Text style={styles.formError}>{formError}</Text> : null}
+              </View>
+            </>
+          )}
         </ScrollView>
       </KeyboardAvoidingScreen>
     </SafeAreaView>
@@ -177,6 +245,10 @@ const makeStyles = (colors) => StyleSheet.create({
     fontWeight: "500",
     color: colors.danger,
     textAlign: "center",
+  },
+  reauthButton: {
+    flex: 0,
+    width: "100%",
   },
   deleteButton: {
     marginTop: 4,

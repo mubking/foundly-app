@@ -73,3 +73,33 @@ async function handleGET(request) {
 }
 
 export const GET = withRequestLogging(handleGET, { route: "/api/notifications" });
+
+/**
+ * Clears the authenticated user's entire notification history. Hard-deletes
+ * only documents whose `recipient` is the caller — never anyone else's — so
+ * the deletion cannot be abused cross-account. A later socket `notification:new`
+ * event simply won't arrive for a cleared history; future notifications still
+ * create new documents as usual.
+ */
+async function handleDELETE(request) {
+  try {
+    let user;
+    try {
+      user = await requireActiveUser(request);
+    } catch (err) {
+      if (err instanceof AuthError) return error(err.message, err.status);
+      throw err;
+    }
+
+    await connectDB();
+
+    const result = await Notification.deleteMany({ recipient: user.id });
+
+    return success({ deletedCount: result.deletedCount }, "Notifications cleared");
+  } catch (err) {
+    console.error("Clear notifications error:", err);
+    return error("Something went wrong while clearing notifications", 500);
+  }
+}
+
+export const DELETE = withRequestLogging(handleDELETE, { route: "/api/notifications" });

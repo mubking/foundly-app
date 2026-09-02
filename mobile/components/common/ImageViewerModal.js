@@ -1,5 +1,6 @@
 import React from "react";
 import { Modal, View, Dimensions, StyleSheet } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import ImageCarousel from "./ImageCarousel";
 import ProgressDots from "./ProgressDots";
@@ -15,6 +16,11 @@ const { height: SCREEN_HEIGHT } = Dimensions.get("window");
  * instead of a second, separate swipe implementation.
  */
 export default function ImageViewerModal({ visible, images, activeIndex, onIndexChange, onClose, topInset = 0 }) {
+  // The dots are pinned to the bottom of the full-screen modal — on
+  // edge-to-edge Android the app draws behind the system navigation area,
+  // so the bottom inset is layered on or the indicator sits under the nav bar.
+  const insets = useSafeAreaInsets();
+
   return (
     <Modal visible={visible} animationType="fade" transparent onRequestClose={onClose} statusBarTranslucent>
       <View style={styles.backdrop}>
@@ -35,7 +41,11 @@ export default function ImageViewerModal({ visible, images, activeIndex, onIndex
         </HeroIconButton>
 
         {images.length > 1 ? (
-          <ProgressDots count={images.length} activeIndex={activeIndex} style={styles.dots} />
+          <ProgressDots
+            count={images.length}
+            activeIndex={activeIndex}
+            style={[styles.dots, { bottom: 40 + insets.bottom }]}
+          />
         ) : null}
       </View>
     </Modal>

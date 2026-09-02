@@ -1,4 +1,6 @@
 import User from "@/models/User";
+import { verifyGoogleIdToken } from "./googleAuth";
+import { verifyAppleIdentityToken } from "./appleAuth";
 
 /**
  * Thrown by {@link findOrCreateSocialUser} for any linking/creation
@@ -99,4 +101,70 @@ export async function findOrCreateSocialUser({
     }
     throw err;
   }
+}
+
+/**
+ * Reauthenticates a social-only account owner during a sensitive action
+ * (creating a password, deactivating the account). The client can never
+ * merely claim the account is "Google" — it must present a freshly-verified
+ * provider token whose subject exactly matches the account's stored
+ * `providerId`. Nothing client-supplied except the token itself is trusted;
+ * the *type* of proof required is decided here from the stored document.
+ *
+ * Only ever called for accounts that have NO local password — password
+ * accounts go through bcrypt confirmation instead (see
+ * api/auth/change-password and api/auth/delete-account).
+ *
+ * @param {object} params
+ * @param {import("mongoose").Document | object} params.user - User doc/lean object (must include `provider` and `providerId`).
+ * @param {string} [params.idToken] - Google ID token, for `provider === "google"`.
+ * @param {string} [params.identityToken] - Apple identity token, for `provider === "apple"`.
+ * @throws {SocialAuthLinkError} A generic 401 if the account has no provider,
+ *   the matching token wasn't supplied, or signature/subject verification fails.
+ */
+export async function requireProviderReauth({ user, idToken, identityToken }) {
+  let payload;
+  try {
+    if (user.provider === "google") {
+      if (!idToken) {
+        throw new SocialAuthLinkError(
+          "Reauthentication failed. Please try again.",
+          401
+        );
+      }
+      payload = await verifyGoogleIdToken(idToken);
+    } else if (user.provider === "apple") {
+      if (!identityToken) {
+        throw new SocialAuthLinkError(
+          "Reauthentication failed. Please try again.",
+          401
+        );
+      }
+      payload = await verifyAppleIdentityToken(identityToken);
+    } else {
+      // No password AND no linked provider — no valid proof exists for this
+      // account shape; refuse rather than guess.
+      throw new SocialAuthLinkError(
+        "Reauthentication isn't available for this account",
+        400
+      );
+    }
+  } catch (err) {
+    if (err instanceof SocialAuthLinkError) throw err;
+    // Expired/bad-signature/bad-audience provider token — generic message so
+    // a client probing this endpoint learns nothing about the verification.
+    throw new SocialAuthLinkError(
+      "Reauthentication failed. Please try again.",
+      401
+    );
+  }
+
+  if (!payload.sub || payload.sub !== user.providerId) {
+    throw new SocialAuthLinkError(
+      "Reauthentication failed. Please try again.",
+      401
+    );
+  }
+
+  return { provider: user.provider, sub: payload.sub };
 }

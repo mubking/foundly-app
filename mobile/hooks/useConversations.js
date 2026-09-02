@@ -40,9 +40,14 @@ export function useConversations() {
     };
   }, []);
 
-  const load = useCallback(async ({ isRefresh = false } = {}) => {
+  const load = useCallback(async ({ isRefresh = false, silent = false } = {}) => {
+    // `silent` (used for background/on-focus refreshes) updates the data
+    // without flashing the full-screen loading spinner or the pull-to-refresh
+    // control — so returning to the Messages tab picks up fresh participant
+    // names/block state (e.g. a "Deleted User" after the other account
+    // deactivated) without any visible flicker.
     if (isRefresh) setRefreshing(true);
-    else setLoading(true);
+    else if (!silent) setLoading(true);
     setError("");
 
     try {
@@ -55,7 +60,7 @@ export function useConversations() {
     } finally {
       if (!isMountedRef.current) return;
       if (isRefresh) setRefreshing(false);
-      else setLoading(false);
+      else if (!silent) setLoading(false);
     }
   }, []);
 
@@ -64,6 +69,9 @@ export function useConversations() {
   }, [load]);
 
   const refresh = useCallback(() => load({ isRefresh: true }), [load]);
+
+  // Background refresh for screen focus — see the `silent` option above.
+  const refreshSilently = useCallback(() => load({ silent: true }), [load]);
 
   const markRead = useCallback(async (conversationId) => {
     try {
@@ -76,5 +84,5 @@ export function useConversations() {
     }
   }, []);
 
-  return { conversations, loading, refreshing, error, refresh, markRead };
+  return { conversations, loading, refreshing, error, refresh, refreshSilently, markRead };
 }

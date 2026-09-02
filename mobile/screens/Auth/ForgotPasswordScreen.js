@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState, useMemo } from "react";
 import { View, Text, ScrollView, Pressable, Animated, StyleSheet } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 
 import { useTheme } from "../../context/ThemeContext";
@@ -17,6 +17,7 @@ import { useAuth } from "../../context/AuthContext";
 export default function ForgotPasswordScreen() {
   const colors = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
+  const insets = useSafeAreaInsets();
   const navigation = useNavigation();
   const { requestPasswordReset } = useAuth();
   const [email, setEmail] = useState("");
@@ -74,7 +75,7 @@ export default function ForgotPasswordScreen() {
       <KeyboardAvoidingScreen>
         <ScrollView
           style={styles.scroll}
-          contentContainerStyle={styles.content}
+          contentContainerStyle={[styles.content, { paddingBottom: 40 + insets.bottom }]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >

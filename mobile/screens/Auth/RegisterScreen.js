@@ -1,6 +1,6 @@
 import React, { useRef, useState, useMemo } from "react";
 import { View, Text, ScrollView, Alert, Platform, StyleSheet } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 
@@ -14,6 +14,7 @@ import SocialButton from "../../components/common/SocialButton";
 import UserIcon from "../../components/common/UserIcon";
 import MailIcon from "../../components/common/MailIcon";
 import PhoneIcon from "../../components/common/PhoneIcon";
+import LockIcon from "../../components/common/LockIcon";
 import KeyboardAvoidingScreen from "../../components/common/KeyboardAvoidingScreen";
 import { useAuth } from "../../context/AuthContext";
 import { googleSignIn, appleSignIn } from "../../services/socialAuth";
@@ -21,6 +22,7 @@ import { googleSignIn, appleSignIn } from "../../services/socialAuth";
 export default function RegisterScreen() {
   const colors = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
+  const insets = useSafeAreaInsets();
   const navigation = useNavigation();
   const { register, loginWithGoogle, loginWithApple } = useAuth();
   const [name, setName] = useState("");
@@ -105,7 +107,7 @@ export default function RegisterScreen() {
       <KeyboardAvoidingScreen>
         <ScrollView
           style={styles.scroll}
-          contentContainerStyle={styles.content}
+          contentContainerStyle={[styles.content, { paddingBottom: 40 + insets.bottom }]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
@@ -168,6 +170,7 @@ export default function RegisterScreen() {
               returnKeyType="go"
               onSubmitEditing={handleCreateAccount}
               hint="Use letters, numbers, and symbols"
+              icon={<LockIcon size={16} color={colors.textLight} />}
             />
 
             {error ? <Text style={styles.errorText}>{error}</Text> : null}

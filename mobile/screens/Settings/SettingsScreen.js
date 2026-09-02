@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useRef } from "react";
 import { View, Text, ScrollView, ActivityIndicator, StyleSheet } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import Constants from "expo-constants";
 
@@ -38,6 +38,7 @@ export default function SettingsScreen() {
   const { mode, preference, setThemePreference } = useThemePreference();
   const navigation = useNavigation();
   const { profile, loading, error, updateProfile, refresh } = useProfile();
+  const insets = useSafeAreaInsets();
   const handleSignOut = useLogout();
 
   // Dark Mode persists via ThemeContext (AsyncStorage, see context/ThemeContext.js)
@@ -90,7 +91,11 @@ export default function SettingsScreen() {
         )}
       </Card>
 
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={[styles.content, { paddingBottom: 24 + insets.bottom }]}
+        showsVerticalScrollIndicator={false}
+      >
         <SettingsSection title="Appearance">
           <SettingsRow
             icon={mode === "dark" ? <MoonIcon size={18} color={colors.textLight} /> : <SunIcon size={18} color={colors.textLight} />}

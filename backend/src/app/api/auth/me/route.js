@@ -16,7 +16,10 @@ export async function GET(request) {
 
     await connectDB();
 
-    const user = await User.findById(authUser.id).select("-password").lean();
+    // `+password` is selected only so toPublicUser can derive the boolean
+    // `hasPassword` (see lib/serializers.js) — the hash itself is never
+    // included in the serialized response, and no other field is returned.
+    const user = await User.findById(authUser.id).select("+password").lean();
     if (!user) {
       return error("User not found", 404);
     }
