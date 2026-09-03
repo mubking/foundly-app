@@ -20,7 +20,6 @@ expo-env.d.ts
 
 # Push notification credentials (FCM/APNs) — provisioned via `eas
 # credentials`, never committed.
-google-services.json
 GoogleService-Info.plist
 
 # Metro
