@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useRef } from "react";
-import { View, Text, ScrollView, ActivityIndicator, StyleSheet } from "react-native";
+import { View, Text, ScrollView, ActivityIndicator, Linking, StyleSheet } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import Constants from "expo-constants";
@@ -31,6 +31,11 @@ import HelpCircleIcon from "../../components/common/HelpCircleIcon";
 import InfoIcon from "../../components/common/InfoIcon";
 import LogOutIcon from "../../components/common/LogOutIcon";
 import Trash2Icon from "../../components/common/Trash2Icon";
+
+// The full, production Privacy Policy lives on the public website (the same
+// origin the API is served from) so it can be submitted to app stores. Tapping
+// "Privacy Policy" below opens it in the device browser.
+const PRIVACY_POLICY_URL = "https://foundly-app-topaz.vercel.app/privacy-policy";
 
 export default function SettingsScreen() {
   const colors = useTheme();
@@ -181,7 +186,7 @@ export default function SettingsScreen() {
           <SettingsRow
             icon={<FileTextIcon size={18} color={colors.textLight} />}
             label="Privacy Policy"
-            onPress={() => navigation.navigate("Legal", { doc: "privacy" })}
+            onPress={() => Linking.openURL(PRIVACY_POLICY_URL).catch(() => {})}
           />
           <SettingsRow
             icon={<FileTextIcon size={18} color={colors.textLight} />}

@@ -18,12 +18,12 @@ export const createFoundItemSchema = z.object({
     "Other",
   ]),
 
-  images: z.array(z.string()).default([]),
+  images: z.array(z.string()).max(5, "At most 5 images are allowed").default([]),
 
   location: z.object({
-    address: z.string(),
-    city: z.string(),
-    state: z.string(),
+    address: z.string().max(200, "Address must be at most 200 characters"),
+    city: z.string().max(100, "City must be at most 100 characters"),
+    state: z.string().max(100, "State must be at most 100 characters"),
     latitude: z.number().optional(),
     longitude: z.number().optional(),
   }),

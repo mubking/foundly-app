@@ -6,9 +6,9 @@ import { z } from "zod";
 // Unknown keys (email, role, password, _id, etc.) are stripped automatically
 // since Zod objects default to "strip" mode for keys they don't declare.
 export const updateProfileSchema = z.object({
-  firstName: z.string().min(2, "First name must be at least 2 characters").optional(),
-  lastName: z.string().min(2, "Last name must be at least 2 characters").optional(),
-  phone: z.string().min(10, "Phone number must be at least 10 characters").optional(),
+  firstName: z.string().min(2, "First name must be at least 2 characters").max(50, "First name must be at most 50 characters").optional(),
+  lastName: z.string().min(2, "Last name must be at least 2 characters").max(50, "Last name must be at most 50 characters").optional(),
+  phone: z.string().min(10, "Phone number must be at least 10 characters").max(20, "Phone number must be at most 20 characters").optional(),
   avatar: z.url("Avatar must be a valid URL").optional(),
   emailNotifications: z.boolean().optional(),
 });
@@ -19,5 +19,9 @@ export const updateProfileSchema = z.object({
 // to reject empty/missing input, and doesn't couple this schema to Expo's
 // token format changing.
 export const pushTokenSchema = z.object({
-  token: z.string().trim().min(1, "token is required"),
+  token: z
+    .string()
+    .trim()
+    .min(1, "token is required")
+    .max(200, "token is too long"),
 });

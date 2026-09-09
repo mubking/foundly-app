@@ -17,9 +17,9 @@ const CATEGORY_ENUM = [
 const STATUS_ENUM = ["open", "matched", "claimed", "closed"];
 
 const locationSchema = z.object({
-  address: z.string(),
-  city: z.string(),
-  state: z.string(),
+  address: z.string().max(200, "Address must be at most 200 characters"),
+  city: z.string().max(100, "City must be at most 100 characters"),
+  state: z.string().max(100, "State must be at most 100 characters"),
   latitude: z.number().optional(),
   longitude: z.number().optional(),
 });
@@ -35,7 +35,7 @@ export const updateLostItemSchema = z.object({
   description: z.string().min(10).max(2000).optional(),
   category: z.enum(CATEGORY_ENUM).optional(),
   location: locationSchema.optional(),
-  images: z.array(z.string()).optional(),
+  images: z.array(z.string()).max(5, "At most 5 images are allowed").optional(),
   reward: z.number().min(0).optional(),
   status: z.enum(STATUS_ENUM).optional(),
 });
@@ -46,6 +46,6 @@ export const updateFoundItemSchema = z.object({
   description: z.string().min(10).max(2000).optional(),
   category: z.enum(CATEGORY_ENUM).optional(),
   location: locationSchema.optional(),
-  images: z.array(z.string()).optional(),
+  images: z.array(z.string()).max(5, "At most 5 images are allowed").optional(),
   status: z.enum(STATUS_ENUM).optional(),
 });

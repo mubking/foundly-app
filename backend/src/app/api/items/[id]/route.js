@@ -8,7 +8,7 @@ import FoundItem from "@/models/FoundItem";
 // in this module's scope before .populate("owner") can resolve it.
 import "@/models/User";
 import { success, error } from "@/lib/response";
-import { requireActiveUser, AuthError } from "@/lib/auth";
+import { getAuthUser, requireActiveUser, AuthError } from "@/lib/auth";
 import { updateLostItemSchema, updateFoundItemSchema } from "@/validations/update-item.validation";
 import { matchLostItem, matchFoundItem } from "@/services/matching.service";
 
@@ -20,6 +20,23 @@ const OWNER_SELECT = "firstName lastName isActive";
 // Strip Mongoose's internal version key from the item document itself.
 const ITEM_SELECT = "-__v";
 
+// Moderation/soft-delete states that must not be served on the public item
+// endpoint to anyone but the item's own owner. `status` is server-controlled
+// (set by the admin moderate route or by account deletion — never by the
+// owner through either create or update schemas), so checking it here is a
+// genuine state gate, not a trust of client input.
+const MODERATION_HIDDEN_STATUSES = new Set(["suspended", "removed"]);
+
+/** Best-effort optional auth: the viewer's user id, or null when unauthenticated/anonymous. */
+function getOptionalViewerId(request) {
+  try {
+    return getAuthUser(request).id;
+  } catch (err) {
+    if (!(err instanceof AuthError)) throw err;
+    return null;
+  }
+}
+
 export async function GET(request, context) {
   try {
 const { id } = await context.params;
@@ -28,6 +45,12 @@ const { id } = await context.params;
     }
 
     await connectDB();
+
+    // Optionally authenticated: an owner may still open their own
+    // suspended/removed listing (e.g. from "My Items") so the moderation
+    // state below doesn't break that screen, but an anonymous/other viewer
+    // never may.
+    const viewerId = getOptionalViewerId(request);
 
     // An ObjectId can only ever exist in one of the two collections, so
     // both lookups can safely run concurrently instead of checking Lost,
@@ -49,6 +72,19 @@ const { id } = await context.params;
     if (item.owner && item.owner.isActive === false) {
       return error("Item not found", 404);
     }
+
+    // Moderation parity: an admin-suspended/removed listing must not be
+    // reachable by direct URL either — search/feed already exclude these
+    // states, so the detail endpoint was the remaining way a removed or
+    // under-review listing could be pulled up. The owner keeps access so
+    // "My Items" → detail (and edit prefill) keeps working for them.
+    if (MODERATION_HIDDEN_STATUSES.has(item.status)) {
+      const ownerId = item.owner && (item.owner._id || item.owner.id || "").toString();
+      if (ownerId !== viewerId) {
+        return error("Item not found", 404);
+      }
+    }
+
     if (item.owner) {
       delete item.owner.isActive;
     }
@@ -87,12 +123,13 @@ export async function PATCH(request, context) {
     await connectDB();
 
     // Same "check both collections concurrently" approach as GET — an
-    // ObjectId can only ever live in one of them. Only `owner` is
-    // projected here since that's all this existence/ownership check
-    // needs; the full document is fetched again after the update below.
+    // ObjectId can only ever live in one of them. Only `owner` + `status`
+    // are projected here: owner for this existence/ownership check, status
+    // for the moderation gate below; the full document is fetched again
+    // after the update below.
     const [lostOwner, foundOwner] = await Promise.all([
-      LostItem.findById(id).select("owner").lean(),
-      FoundItem.findById(id).select("owner").lean(),
+      LostItem.findById(id).select("owner status").lean(),
+      FoundItem.findById(id).select("owner status").lean(),
     ]);
 
     const existing = lostOwner || foundOwner;
@@ -102,6 +139,15 @@ export async function PATCH(request, context) {
 
     if (existing.owner.toString() !== user.id) {
       return error("You are not allowed to update this item", 403);
+    }
+
+    // Moderation gate: an admin-suspended/removed listing must not be
+    // editable by its owner. Without this, the owner could trivially
+    // reverse a moderation decision (e.g. PATCH {status: "open"} on a
+    // removed listing, which the update schema otherwise permits), so the
+    // only way to restore is the admin "restore" action.
+    if (MODERATION_HIDDEN_STATUSES.has(existing.status)) {
+      return error("This item has been hidden and can't be edited", 403);
     }
 
     const type = lostOwner ? "lost" : "found";

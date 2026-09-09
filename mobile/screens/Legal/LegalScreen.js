@@ -52,44 +52,6 @@ const DOCS = {
       },
     ],
   },
-  privacy: {
-    title: "Privacy Policy",
-    sections: [
-      {
-        heading: "What we collect",
-        body:
-          "Account details you provide (name, email, phone), photos and descriptions you attach to lost/found " +
-          "reports and claims, messages you send in chat, and — only if you grant permission — your device's " +
-          "location, camera, and photo library, used to attach a location to reports and to let you take or " +
-          "choose photos.",
-      },
-      {
-        heading: "How it's used",
-        body:
-          "To operate core features: matching lost items to found items, showing nearby reports, verifying " +
-          "claims, and notifying you (push and, if enabled, email) about matches, claim updates, and messages.",
-      },
-      {
-        heading: "Sharing",
-        body:
-          "Other users can see the details you choose to include on a public report (photos, description, " +
-          "approximate location) and your name when you message them about an item. We don't sell your personal " +
-          "data.",
-      },
-      {
-        heading: "Your controls",
-        body:
-          "You can edit your profile, turn off email notifications, and permanently delete your account from " +
-          "Settings at any time. Deleting your account deactivates it immediately.",
-      },
-      {
-        heading: "Sign in with Google / Apple",
-        body:
-          "If you sign in with Google or Apple, we only receive the verified identity token needed to create or " +
-          "match your account — we never see your Google or Apple password.",
-      },
-    ],
-  },
 };
 
 export default function LegalScreen() {

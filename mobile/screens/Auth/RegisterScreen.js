@@ -1,5 +1,5 @@
 import React, { useRef, useState, useMemo } from "react";
-import { View, Text, ScrollView, Alert, Platform, StyleSheet } from "react-native";
+import { View, Text, ScrollView, Alert, Platform, Linking, StyleSheet } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
@@ -18,6 +18,10 @@ import LockIcon from "../../components/common/LockIcon";
 import KeyboardAvoidingScreen from "../../components/common/KeyboardAvoidingScreen";
 import { useAuth } from "../../context/AuthContext";
 import { googleSignIn, appleSignIn } from "../../services/socialAuth";
+
+// The full, production Privacy Policy lives on the public website (the same
+// origin the API is served from) so it can be submitted to app stores.
+const PRIVACY_POLICY_URL = "https://foundly-app-topaz.vercel.app/privacy-policy";
 
 export default function RegisterScreen() {
   const colors = useTheme();
@@ -218,7 +222,10 @@ export default function RegisterScreen() {
                 Terms
               </Text>{" "}
               and{" "}
-              <Text style={styles.legalLink} onPress={() => navigation.navigate("Legal", { doc: "privacy" })}>
+              <Text
+                style={styles.legalLink}
+                onPress={() => Linking.openURL(PRIVACY_POLICY_URL).catch(() => {})}
+              >
                 Privacy Policy
               </Text>
             </Text>

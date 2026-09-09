@@ -8,6 +8,15 @@ import { withRequestLogging } from "@/lib/logger";
 
 const VALID_TYPES = ["lost", "found", "all"];
 const VALID_SORTS = ["newest", "oldest", "closest_match", "highest_reward", "nearest", "most_active"];
+// Statuses a caller may explicitly filter the *public* feed by. buildMatchStage
+// excludes "suspended" (admin-hidden pending review) and "removed"
+// (soft-deleted) by default, but its explicit-status override means a crafted
+// `?status=suspended`/`?status=removed` would otherwise enumerate every listing
+// a moderator has taken down — this whitelist stops that override from
+// bypassing moderation. "claimed"/"closed" stay accepted because, unlike
+// suspended/removed, they are ordinary terminal states of a listing's
+// lifecycle (previously requestable through this same param).
+const PUBLIC_FILTER_STATUSES = new Set(["open", "matched", "claimed", "closed"]);
 
 function parseFloatParam(searchParams, key) {
   const raw = searchParams.get(key);
@@ -38,6 +47,14 @@ async function handleGET(request) {
       return error(`Invalid "sort" — must be one of: ${VALID_SORTS.join(", ")}`, 400);
     }
 
+    const rawStatus = searchParams.get("status")?.trim() || "";
+    if (rawStatus && !PUBLIC_FILTER_STATUSES.has(rawStatus)) {
+      return error(
+        'Invalid "status" — must be one of: open, matched, claimed, closed',
+        400
+      );
+    }
+
     const { page, limit, skip } = parsePagination(searchParams);
 
     const filters = {
@@ -47,7 +64,7 @@ async function handleGET(request) {
       color: searchParams.get("color")?.trim() || "",
       city: searchParams.get("city")?.trim() || "",
       state: searchParams.get("state")?.trim() || "",
-      status: searchParams.get("status")?.trim() || "",
+      status: rawStatus,
       dateFrom: parseDateParam(searchParams, "dateFrom"),
       dateTo: parseDateParam(searchParams, "dateTo"),
       hasReward: searchParams.get("hasReward") === "true",

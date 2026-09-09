@@ -68,10 +68,21 @@ async function handlePOST(request) {
     await connectDB();
 
     const { Model, modelName } = ITEM_LOOKUP[itemType];
-    const item = await Model.findById(itemId).select("owner title").lean();
+    const item = await Model.findById(itemId).select("owner title status").lean();
 
     if (!item) {
       return error("Item not found", 404);
+    }
+
+    // Only listings that are still actively available may be claimed.
+    // `status` is server-controlled (owners can't set suspended/removed and
+    // "claimed"/"closed" are only reachable after a prior review decision /
+    // owner closing the listing), so this is a genuine state gate: without
+    // it, a claim could be filed against an already-claimed/closed listing
+    // or against one a moderator suspended/removed — spamming the owner with
+    // a claim that can never be meaningfully reviewed.
+    if (!["open", "matched"].includes(item.status)) {
+      return error("This item is no longer available to claim", 400);
     }
 
     // Not explicitly requested, but claiming your own reported item makes
