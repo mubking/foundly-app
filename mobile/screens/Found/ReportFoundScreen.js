@@ -51,9 +51,11 @@ export default function ReportFoundScreen() {
             onPress={form.handleSubmit}
           >
             {form.submitting
-              ? form.uploadProgress > 0
-                ? `Publishing… ${form.uploadProgress}%`
-                : "Publishing…"
+              ? form.finalizing
+                ? "Publishing…"
+                : form.uploadProgress > 0
+                  ? `Publishing… ${form.uploadProgress}%`
+                  : "Publishing…"
               : "Publish Found Item"}
           </Button>
         </ScrollView>

@@ -33,9 +33,10 @@ export function validateStep2({ location }) {
 /**
  * All state and submit logic for the 3-step Report Lost Item screen: step
  * navigation, per-step validation, photo attachment, and the submit
- * pipeline (upload photos → geolocate → create the item → return to Home).
- * Kept out of the screen component so the screen stays a thin render of
- * this state, per the project's 250-line file guidance.
+ * pipeline (upload photos → geolocate → create the item → show the
+ * publish-confirmation screen). Kept out of the screen component so the
+ * screen stays a thin render of this state, per the project's 250-line file
+ * guidance.
  */
 export function useReportLostForm() {
   const navigation = useNavigation();
@@ -59,6 +60,11 @@ export function useReportLostForm() {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [uploadProgress, setUploadProgress] = useState(0);
+  // True once image uploads have finished and the item is being created —
+  // distinguishes "still uploading photos" (has a meaningful percent) from
+  // "photos are up, waiting on the server to create the item" so the button
+  // label doesn't sit at a stale "Publishing… 100%" for that whole request.
+  const [finalizing, setFinalizing] = useState(false);
   // Closes the gap between a tap landing and the `submitting`-driven
   // disabled state actually re-rendering — same pattern as
   // hooks/useMessages.js's sendingRef.
@@ -69,6 +75,7 @@ export function useReportLostForm() {
     submittingRef.current = true;
     setSubmitError("");
     setUploadProgress(0);
+    setFinalizing(false);
     setSubmitting(true);
     try {
       const [imageUrls, geo] = await Promise.all([
@@ -81,6 +88,8 @@ export function useReportLostForm() {
         locate(),
       ]);
 
+      setFinalizing(true);
+
       const contextParts = [
         additionalContext.trim() ? `Additional context: ${additionalContext.trim()}` : "",
         timeLost.trim() ? `Approx. time lost: ${timeLost.trim()}` : "",
@@ -89,7 +98,7 @@ export function useReportLostForm() {
         ? `${description.trim()}\n\n${contextParts.join("\n")}`
         : description.trim();
 
-      await createLostItem({
+      const created = await createLostItem({
         title: title.trim(),
         description: fullDescription,
         category,
@@ -109,12 +118,27 @@ export function useReportLostForm() {
         reward: Number(reward) || 0,
       });
 
-      navigation.navigate("Home");
+      // POST /api/items/lost can also answer 200 with a duplicate-warning
+      // payload (`{ duplicateWarning: true }`, no created item) when the
+      // server thinks this is already covered — nothing was posted in that
+      // case, so there's no id to show on a success screen. Treat it as a
+      // failed publish rather than celebrating a report that doesn't exist.
+      if (!created?._id) {
+        setSubmitError("We couldn't confirm your report was posted. Please try again.");
+        return;
+      }
+
+      // Swap this form for the confirmation screen (replace, not push, so the
+      // form's state is unmounted and back can never return to it), handing
+      // over the new report's id for its "View Report" action.
+      navigation.replace("ReportSuccess", { reportType: "lost", itemId: created._id });
     } catch (err) {
       setSubmitError(err.message || "Something went wrong. Please try again.");
     } finally {
       submittingRef.current = false;
       setSubmitting(false);
+      setFinalizing(false);
+      setUploadProgress(0);
     }
   }, [
     title,
@@ -181,6 +205,7 @@ export function useReportLostForm() {
     submitting,
     submitError,
     uploadProgress,
+    finalizing,
     handleBack,
     handlePrimaryAction,
   };

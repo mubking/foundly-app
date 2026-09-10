@@ -212,7 +212,11 @@ export async function uploadImages(assets, folder, { onProgress, signal } = {}) 
   const reportOverall = () => {
     if (!onProgress || progressByIndex.length === 0) return;
     const total = progressByIndex.reduce((sum, percent) => sum + percent, 0);
-    const overall = Math.round(total / progressByIndex.length);
+    // A percentage can never leave the 0-100 range — clamp the averaged
+    // overall here (and each per-file value before it's stored below) so no
+    // caller, including the "Publishing… N%" publish-button labels, can ever
+    // be handed a value above 100.
+    const overall = Math.round(Math.max(0, Math.min(100, total / progressByIndex.length)));
     if (overall === lastReported) return;
     lastReported = overall;
     onProgress(overall);
@@ -223,11 +227,27 @@ export async function uploadImages(assets, folder, { onProgress, signal } = {}) 
       signal,
       onProgress: onProgress
         ? (percent) => {
-            progressByIndex[index] = percent;
+            // Same clamp as reportOverall applies — one out-of-range per-file
+            // report must not poison the stored batch average either.
+            progressByIndex[index] = Math.max(0, Math.min(100, percent));
             reportOverall();
           }
         : undefined,
     })
   );
+
+  // The upload phase is now fully complete, so the reported progress must be
+  // exactly 100. XHR doesn't guarantee its final progress event lands on 100
+  // (the last event can stall a point or two short), and nothing about the
+  // post-upload request that follows should read as "still uploading". Stamp
+  // 100 once, the moment the batch resolves, so the label settles instead of
+  // showing a stale/creeping value while the item is being created. Only
+  // meaningful when there actually was an upload — a zero-asset batch has no
+  // progress to finish.
+  if (onProgress && assets.length > 0 && lastReported !== 100) {
+    lastReported = 100;
+    onProgress(100);
+  }
+
   return results.map((result) => result.url);
 }

@@ -14,6 +14,7 @@ import ItemDetailsScreen from "../screens/Details/ItemDetailsScreen";
 import EditListingScreen from "../screens/Details/EditListingScreen";
 import ReportLostScreen from "../screens/Lost/ReportLostScreen";
 import ReportFoundScreen from "../screens/Found/ReportFoundScreen";
+import ReportSuccessScreen from "../screens/ReportSuccessScreen";
 import ClaimVerificationScreen from "../screens/Claim/ClaimVerificationScreen";
 import OwnerClaimsScreen from "../screens/Claim/OwnerClaimsScreen";
 import ClaimDetailsScreen from "../screens/Claim/ClaimDetailsScreen";
@@ -105,6 +106,11 @@ export default function RootNavigator() {
       <Stack.Screen
         name="UploadFound"
         component={ReportFoundScreen}
+      />
+
+      <Stack.Screen
+        name="ReportSuccess"
+        component={ReportSuccessScreen}
       />
 
       <Stack.Screen

@@ -60,8 +60,16 @@ export async function uploadFile(path, formData, { onProgress, signal, timeoutMs
     };
 
     xhr.upload.onprogress = (event) => {
-      if (onProgress && event.lengthComputable) {
-        onProgress(Math.round((event.loaded / event.total) * 100));
+      // `total > 0` is required alongside `lengthComputable` — a 0-byte file
+      // reports loaded=0/total=0, and 0/0 is NaN, which the clamp below
+      // can't catch (NaN fails every comparison, so Math.min/max pass it
+      // straight through).
+      if (onProgress && event.lengthComputable && event.total > 0) {
+        // Enforce the 0-100 contract at the byte-level source. A percentage
+        // computed from `loaded`/`total` should never leave that range, but a
+        // stray rounding result or platform quirk must never reach a screen's
+        // "Publishing… N%" label as something like 132%.
+        onProgress(Math.max(0, Math.min(100, Math.round((event.loaded / event.total) * 100))));
       }
     };
 

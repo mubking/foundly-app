@@ -55,9 +55,11 @@ export default function ReportLostScreen() {
               icon={<CheckCircleIcon size={18} color="#fff" />}
             >
               {form.submitting
-                ? form.uploadProgress > 0
-                  ? `Publishing… ${form.uploadProgress}%`
-                  : "Publishing…"
+                ? form.finalizing
+                  ? "Publishing…"
+                  : form.uploadProgress > 0
+                    ? `Publishing… ${form.uploadProgress}%`
+                    : "Publishing…"
                 : "Publish Report"}
             </Button>
           )}
